@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Data
 {
     /// <summary>
-    /// Configuration for the OCR and receipt processing pipeline
+    /// Configuration for the OCR and document processing pipeline
     /// </summary>
     public class OcrConfiguration
     {
