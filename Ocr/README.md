@@ -1,6 +1,6 @@
-# Receipt OCR Service
+# Document OCR Service
 
-Python-based receipt OCR service using PaddleOCR and open-source models (Donut, IDEFICS2) for structured data extraction.
+Python-based document OCR service using PaddleOCR and open-source transformer models (Donut, IDEFICS2, LayoutLMv3) for structured data extraction from receipts, invoices, and other documents.
 
 ## Python Requirements
 
@@ -9,7 +9,7 @@ Python-based receipt OCR service using PaddleOCR and open-source models (Donut, 
 
 ## Overview
 
-This service provides OCR and structured field extraction from receipt images using:
+This service provides OCR and structured field extraction from document images using:
 - **PaddleOCR (PP-StructureV3)**: Text detection and recognition
 - **Donut (default)**: OCR-free document understanding transformer (MIT license)
 - **IDEFICS2**: Multimodal vision-language model (Apache 2.0 license)
@@ -17,7 +17,7 @@ This service provides OCR and structured field extraction from receipt images us
 
 ## Features
 
-- Multi-page receipt processing
+- Multi-page document processing
 - Token-to-bounding-box mapping
 - Configurable model selection (Donut, IDEFICS2, LayoutLMv3)
 - GPU acceleration with CPU fallback
@@ -28,7 +28,7 @@ This service provides OCR and structured field extraction from receipt images us
 
 | Model | License | OCR Required | Memory | Best For |
 |-------|---------|--------------|--------|----------|
-| Donut | MIT | No | ~2GB | Fast processing, receipt-specific |
+| Donut | MIT | No | ~2GB | Fast processing, document-specific |
 | IDEFICS2 | Apache 2.0 | No | ~16GB (4-bit: ~6GB) | High accuracy, flexible |
 | LayoutLMv3 | - | Yes | ~2GB | Token classification tasks |
 
@@ -193,10 +193,10 @@ python cli.py version
 
 ### Command-line Interface
 
-Process a single receipt (uses Donut by default):
+Process a single document (uses Donut by default):
 
 ```bash
-python cli.py process --image path/to/receipt.jpg --output result.json
+python cli.py process --image path/to/document.jpg --output result.json
 ```
 
 Process multiple pages:
@@ -209,19 +209,19 @@ Use a specific model type:
 
 ```bash
 # Use Donut (default, OCR-free, MIT license)
-python cli.py process --image receipt.jpg --output result.json --model-type donut
+python cli.py process --image document.jpg --output result.json --model-type donut
 
 # Use IDEFICS2 (multimodal, Apache 2.0 license, requires more GPU memory)
-python cli.py process --image receipt.jpg --output result.json --model-type idefics2 --device cuda
+python cli.py process --image document.jpg --output result.json --model-type idefics2 --device cuda
 
 # Use LayoutLMv3 (requires OCR first)
-python cli.py process --image receipt.jpg --output result.json --model-type layoutlmv3 --model microsoft/layoutlmv3-base
+python cli.py process --image document.jpg --output result.json --model-type layoutlmv3 --model microsoft/layoutlmv3-base
 ```
 
 Configure OCR engine and device:
 
 ```bash
-python cli.py process --image receipt.jpg --output result.json --ocr-engine paddle --device cuda
+python cli.py process --image document.jpg --output result.json --ocr-engine paddle --device cuda
 ```
 
 ### Debug Mode
@@ -230,7 +230,7 @@ Debug mode saves intermediary images for each processing step, allowing you to v
 
 ```bash
 python cli.py process \
-  --image receipt.jpg \
+  --image document.jpg \
   --output result.json \
   --debug \
   --debug-output-dir ./my_debug_output
@@ -267,7 +267,7 @@ processor = ReceiptProcessor(
     device="cuda"
 )
 
-result = processor.process_receipt(["page1.jpg", "page2.jpg"])
+result = processor.process_receipt(["document1.jpg", "document2.jpg"])
 print(result.to_json())
 ```
 
@@ -569,7 +569,7 @@ python -m pytest tests/ --cov=. --cov-report=term-missing
 
 See `docs/fine_tuning.md` for instructions on:
 - Preparing training data
-- Labeling receipts
+- Labeling documents
 - Training the model
 - Evaluating performance
 
@@ -582,7 +582,7 @@ See `docs/fine_tuning.md` for instructions on:
 
 ## Performance
 
-Typical performance on a receipt (1-2 pages, 300 DPI):
+Typical performance on a document (1-2 pages, 300 DPI):
 
 | Hardware | OCR Time | Model Inference | Total |
 |----------|----------|----------------|-------|
@@ -604,9 +604,9 @@ python cli.py process --image receipt.jpg --device cpu
 2. Ensure good lighting and minimal skew
 3. Try preprocessing options:
    ```bash
-   python cli.py process --image receipt.jpg --denoise --deskew
+   python cli.py process --image document.jpg --denoise --deskew
    ```
-4. Consider fine-tuning on your specific receipt formats
+4. Consider fine-tuning on your specific document formats
 
 ## License
 
