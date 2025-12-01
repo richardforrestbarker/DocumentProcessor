@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>a1b2c3d4-e5f6-7890-abcd-ef1234567890</ProjectGuid>
+    <ProjectHome>.</ProjectHome>
+    <StartupFile>cli.py</StartupFile>
+    <SearchPath>
+    </SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <Name>Bardcoded.Ocr</Name>
+    <RootNamespace>Bardcoded.Ocr</RootNamespace>
+    <InterpreterId>
+    </InterpreterId>
+    <TestFramework>Pytest</TestFramework>
+    <SuppressEnvironmentCreationPrompt>True</SuppressEnvironmentCreationPrompt>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="cli.py" />
+    <Compile Include="src\__init__.py" />
+    <Compile Include="src\config.py" />
+    <Compile Include="src\receipt_processor.py" />
+    <Compile Include="src\models\__init__.py" />
+    <Compile Include="src\models\base.py" />
+    <Compile Include="src\models\layoutlmv3.py" />
+    <Compile Include="src\ocr\ocr_engine.py" />
+    <Compile Include="src\preprocessing\image_preprocessor.py" />
+    <Compile Include="src\postprocessing\field_extractor.py" />
+    <Compile Include="tests\conftest.py" />
+    <Compile Include="tests\test_cli_integration.py" />
+    <Compile Include="tests\test_cli_unit.py" />
+    <Compile Include="tests\__init__.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="scripts\" />
+    <Folder Include="src\" />
+    <Folder Include="src\models\" />
+    <Folder Include="src\ocr\" />
+    <Folder Include="src\preprocessing\" />
+    <Folder Include="src\postprocessing\" />
+    <Folder Include="config\" />
+    <Folder Include="docs\" />
+    <Folder Include="tests\" />
+    <Folder Include="tests\fixtures\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="requirements.txt" />
+    <Content Include="Dockerfile" />
+    <Content Include="README.md" />
+    <Content Include="config\config.yaml" />
+    <Content Include="docs\fine_tuning.md" />
+    <Content Include=".gitignore" />
+    <Content Include="scripts\convert_to_tiff.sh" />
+    <Content Include="scripts\denoise.sh" />
+    <Content Include="scripts\deskew.sh" />
+    <Content Include="scripts\enhance_contrast.sh" />
+    <Content Include="scripts\fix_resolution.sh" />
+    <Content Include="scripts\grayscale.sh" />
+    <Content Include="scripts\preprocess_all.sh" />
+    <Content Include="scripts\remove_background.sh" />
+  </ItemGroup>
+  <!-- Import Python Tools targets only when available (Visual Studio only) -->
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets')" />
+  <!-- Fallback target for non-VS builds -->
+  <Target Name="Build" Condition="!Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets')">
+    <Message Text="Python Tools for Visual Studio not found. Skipping Python project build." Importance="high" />
+  </Target>
+</Project>

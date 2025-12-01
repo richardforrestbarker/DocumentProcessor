@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bardcoded</title>
+    <base href="/" />
+
+    <!--<script src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>-->
+    <script type='importmap'>
+        {
+            "imports": {
+                 "BarcodeReaders"    : "./Components/Barcode/BarcodeReader.razor.js"
+            }
+        }
+    </script>
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+
+    <script src="lib/jquery/jquery.min.js"></script>
+    <script src="lib/bootstrap/dist/js/bootstrap.min.js"></script>
+    <script src="lib/popper.js/umd/popper.js"></script>
+    <script src="lib/quagga/quagga.min.js"></script>
+
+
+
+    <link rel="stylesheet" href="lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="Bardcoded.Wasm.styles.css" rel="stylesheet" />
+    <link href="manifest.webmanifest" rel="manifest" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+
+    <script type="module" language="javascript">
+        import { ImageBarcodeReader } from "BarcodeReaders";
+        console.log("module running!");
+        var Barcodes = { reader: new ImageBarcodeReader(), };
+        window.Barcodes = Barcodes;
+        export default Barcodes;
+    </script>
+</head>
+
+<body>
+    <noscript>
+        <div class="d-flex-columm px-3 mx-3 w-75">
+            <h1>Uh Oh!</h1>
+            <h2>Javascript is disabled.</h2>
+            <h4>Javascript is required for this site to function properly.</h4>
+        </div>
+    </noscript>
+    <div id="app">
+        <svg class="loading-progress">
+            <circle r="40%" cx="50%" cy="50%" />
+            <circle r="40%" cx="50%" cy="50%" />
+        </svg>
+        <div class="loading-progress-text"></div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        navigator.serviceWorker.register('service-worker.js');
+    </script>
+    
+
+
+</body>
+
+</html>

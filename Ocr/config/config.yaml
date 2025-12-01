@@ -1,0 +1,54 @@
+# Receipt OCR Configuration
+
+# Model settings
+model:
+  name_or_path: "microsoft/layoutlmv3-base"
+  device: "auto"  # auto, cuda, cpu
+  num_labels: 13  # Number of entity types to extract
+
+# OCR settings
+ocr:
+  engine: "paddle"  # paddle or tesseract
+  detection_mode: "word"  # word or line
+  lang: "en"
+  use_gpu: true
+
+# Image preprocessing
+preprocessing:
+  target_dpi: 300
+  denoise: true
+  deskew: true
+  enhance_contrast: true
+  # ImageMagick preprocessing parameters
+  fuzz_percent: 30           # Fuzz percentage for background removal (0-100)
+  deskew_threshold: 40       # Deskew threshold percentage (0-100)
+  contrast_type: sigmoidal   # Contrast enhancement type: sigmoidal, linear, or none
+  contrast_strength: 3       # Contrast strength (sigmoidal: 1-10 typical, linear: ignored)
+  contrast_midpoint: 120     # Contrast midpoint percentage (sigmoidal only: 0-100+)
+
+# Postprocessing
+postprocessing:
+  min_confidence: 0.8
+  verify_totals: true
+
+# Storage
+storage:
+  temp_dir: "./temp"
+  model_cache_dir: "./models"
+
+# Field labels for LayoutLM training
+# Maps label IDs to field names
+field_labels:
+  0: "O"  # Outside entity
+  1: "B-VENDOR"  # Begin vendor name
+  2: "I-VENDOR"  # Inside vendor name
+  3: "B-DATE"
+  4: "I-DATE"
+  5: "B-TOTAL"
+  6: "I-TOTAL"
+  7: "B-SUBTOTAL"
+  8: "I-SUBTOTAL"
+  9: "B-TAX"
+  10: "I-TAX"
+  11: "B-ITEM"  # Line item
+  12: "I-ITEM"

@@ -1,0 +1,44 @@
+# Python dependencies for Receipt OCR Service
+
+# Core dependencies
+numpy>=1.24.0,<2.0.0
+Pillow>=10.0.0
+opencv-python>=4.8.0
+scikit-image>=0.21.0
+
+# OCR engines
+paddleocr>=2.7.0
+paddlepaddle>=2.5.0; sys_platform != 'darwin' or platform_machine != 'arm64'
+paddlepaddle-gpu>=2.5.0; sys_platform == 'linux'  # Optional GPU support
+pytesseract>=0.3.10  # Fallback OCR
+
+# Deep learning and NLP
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.30.0
+datasets>=2.14.0
+
+# Model optimization (for IDEFICS2 4-bit quantization)
+accelerate>=0.20.0
+bitsandbytes>=0.41.0; sys_platform == 'linux'  # 4-bit quantization (Linux only)
+
+# LayoutLM and document understanding
+layoutparser>=0.3.4
+
+# Utilities
+pyyaml>=6.0
+python-dateutil>=2.8.0
+tqdm>=4.65.0
+
+# API and CLI
+click>=8.1.0
+pydantic>=2.0.0
+
+# Image preprocessing
+scipy>=1.11.0
+# Note: ImageMagick CLI is required - see README.md for installation instructions
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-xdist>=3.3.0
