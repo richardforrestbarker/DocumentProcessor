@@ -1,465 +1,329 @@
-# Bardcode - Home Supply Management System
+# DocumentProcessor - Document OCR Processing Component
 
-Bardcode is a home supply management system that helps you track and manage household items using barcode scanning. The system allows you to scan product barcodes, retrieve product information, and maintain an inventory of your home supplies.
+DocumentProcessor is a reusable .NET component that provides advanced document OCR (Optical Character Recognition) capabilities with machine learning-based field extraction. It enables applications to process document images (such as receipts, invoices, and forms) and extract structured data with high accuracy.
 
 ## Features
 
-- **Barcode Scanning**: Scan product barcodes using your device's camera
-- **Product Information Retrieval**: Automatically fetch product details from external APIs
-- **Inventory Management**: Track and manage your home supplies
-- **Web-Based Interface**: Access your inventory from any device with a modern web browser
+- **Document OCR Processing**: Extract text and structured data from document images
+- **Machine Learning Field Extraction**: Identify and extract specific fields (vendor, date, amounts, line items)
+- **Multi-Phase Pipeline**: Separate preprocessing, OCR, and inference stages for optimal control
+- **RESTful API**: Easy integration via HTTP endpoints
+- **Blazor WebAssembly Component**: Ready-to-use UI component for document processing
+- **Python OCR Service**: High-accuracy OCR using PaddleOCR, Tesseract, and transformer models
+- **Configurable Preprocessing**: Adjustable image enhancement for optimal OCR results
 
 ## Technology Stack
 
-- **.NET 9.0**: Backend API and hosting
-- **Blazor WebAssembly**: Progressive web application frontend
-- **Entity Framework Core**: Database access with SQLite
+- **.NET 10.0**: Backend API and component library
 - **ASP.NET Core**: RESTful API services
-- **.NET Aspire**: Distributed application orchestration
+- **Blazor WebAssembly**: Interactive document processing UI component
+- **Python 3.12**: OCR and machine learning pipeline
+- **PaddleOCR / Tesseract**: Text detection and recognition
+- **Transformer Models**: LayoutLMv3, Donut, IDEFICS2 for field extraction
+- **ImageMagick**: Image preprocessing pipeline
 
 ## Prerequisites
 
-Before building and running the project, ensure you have the following installed:
+### .NET Development
 
-- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0) or later
-- [LibMan CLI](https://learn.microsoft.com/en-us/aspnet/core/client-side/libman/libman-cli) (for managing client-side libraries)
-- [Entity Framework Core tools](https://learn.microsoft.com/en-us/ef/core/cli/dotnet) (for database migrations)
+- [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
 
-### Python Requirements for OCR (Bardcoded.Ocr)
+### Python Requirements for OCR Service
 
-- **Python version must be 3.12** for all environments.
-- **Windows users:** The Ninja build system must **not** be on your PATH, or else pip will use Ninja for building wheels instead of the default backend (setuptools). This will cause build failures for some dependencies. If you encounter build errors, ensure Ninja is not present in your PATH. For instance, you might find it installed with Visual Studio.
+- **Python version must be 3.12** for all environments
+- **Windows users:** The Ninja build system must **not** be on your PATH, as it can cause build failures for some Python dependencies. If you encounter build errors, ensure Ninja is not present in your PATH (e.g., from Visual Studio installations)
 
-### Installing LibMan CLI
+### System Dependencies
 
-To install the LibMan CLI tool globally, run:
-
-```bash
-dotnet tool install -g Microsoft.Web.LibraryManager.Cli
-```
-
-### Installing Entity Framework Core Tools
-
-To install the EF Core CLI tools globally, run:
-
-```bash
-dotnet tool install -g dotnet-ef
-```
-
-Alternatively, the EF Core tools are included as a project reference and can be used via `dotnet ef` without global installation.
+- **ImageMagick**: Required for image preprocessing
+  - Ubuntu/Debian: `sudo apt-get install imagemagick`
+  - macOS: `brew install imagemagick`
+  - Windows: Download from [ImageMagick Downloads](https://imagemagick.org/script/download.php)
+  
+- **Tesseract OCR** (optional, fallback engine):
+  - Ubuntu/Debian: `sudo apt-get install tesseract-ocr tesseract-ocr-eng`
+  - macOS: `brew install tesseract`
+  - Windows: Download from [Tesseract GitHub](https://github.com/UB-Mannheim/tesseract/wiki)
 
 ## Building the Project
-
-Follow these steps to build the project:
 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/richardforrestbarker/Bardcode.git
-cd Bardcode
+git clone https://github.com/richardforrestbarker/DocumentProcessor.git
+cd DocumentProcessor
 ```
 
-### 2. Restore NuGet Packages
+### 2. Build the .NET Solution
 
 ```bash
+# Restore NuGet packages and build
 dotnet restore
-```
-
-### 3. Restore Client-Side Libraries with LibMan
-
-The Blazor WebAssembly project uses LibMan to manage client-side libraries (jQuery, Bootstrap, Quagga.js, and Popper.js). Restore these libraries by running:
-
-```bash
-cd Bardcoded.Wasm
-libman restore
-cd ..
-```
-
-This will download the required client libraries specified in `Bardcoded.Wasm/libman.json` to the `wwwroot/lib` directory.
-
-> **Note**: If you encounter version resolution errors with libman, you may need to update the library versions in `Bardcoded.Wasm/libman.json` to match what's currently available on the cdnjs provider.
-
-### 4. Build the Solution
-
-```bash
 dotnet build
 ```
 
-## Database Setup
-
-The project uses Entity Framework Core with SQLite for data storage. Follow these steps to set up the database:
-
-### Creating Migrations
-
-To create a new migration, use the following command:
+### 3. Set Up the Python OCR Service
 
 ```bash
-dotnet ef migrations add <MigrationName> --project Api/Api.csproj --startup-project Api/Api.csproj
+cd Ocr
+
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Return to root
+cd ..
 ```
 
-Replace `<MigrationName>` with a descriptive name for your migration (e.g., "InitialCreate" or version number like "1.0.0.0").
+For detailed Python setup instructions, see the [OCR Service README](Ocr/README.md).
 
-### Applying Migrations
+## Project Structure
 
-To apply migrations and update the SQLite database, run:
-
-```bash
-dotnet ef database update --project Api/Api.csproj --startup-project Api/Api.csproj
+```
+DocumentProcessor/
+├── Api/                      # ASP.NET Core API service
+│   ├── DocumentController.cs # Document processing endpoints
+│   └── OcrServiceExtensions.cs # Service registration
+├── Data/                     # Shared data models and interfaces
+│   ├── IDocumentProcessor.cs # Document processor interface
+│   ├── OcrConfiguration.cs   # OCR configuration model
+│   └── Messages/             # Request/response DTOs
+├── Wasm/                     # Blazor WebAssembly components
+│   ├── DocumentProcessing.razor # Main document processing component
+│   └── ClientSideDocumentProcessor.cs # Client-side implementation
+├── Ocr/                      # Python OCR service
+│   ├── cli.py                # Command-line interface
+│   ├── src/                  # Python source code
+│   ├── requirements.txt      # Python dependencies
+│   └── README.md             # OCR service documentation
+├── Tests/                    # Unit and integration tests
+└── ServiceDefaults/          # Shared service configuration
 ```
 
-This command will create the database file and apply all pending migrations.
+## Using DocumentProcessor in Your Application
 
-## Running the Application
+The DocumentProcessor component can be integrated into your .NET application in multiple ways:
 
-The application uses .NET Aspire for orchestration, which manages multiple services including the API service, web frontend, and Redis cache.
+### Option 1: As a Service (API Integration)
 
-### Using .NET Aspire (Recommended)
+Run the API service and make HTTP requests to the document processing endpoints:
 
-To run the entire application with all services:
-
-```bash
-dotnet run --project Bardcoded.AppHost/Bardcoded.AppHost.csproj
-```
-
-This will start:
-- The API service (Api)
-- The Blazor WebAssembly frontend (Bardcoded.Wasm)
-- A Redis cache instance
-- The Aspire dashboard for monitoring
-
-### Running Individual Services
-
-Alternatively, you can run services individually:
-
-**API Service:**
 ```bash
 dotnet run --project Api/Api.csproj
 ```
 
-**Web Frontend:**
-```bash
-dotnet run --project Bardcoded.Wasm/Bardcoded.Wasm.csproj
+The API will be available at `https://localhost:5001` (or `http://localhost:5000`).
+
+### Option 2: As a NuGet Package Reference
+
+Add the Data and Api projects to your solution and reference them:
+
+```xml
+<ItemGroup>
+  <ProjectReference Include="..\DocumentProcessor\Data\Data.csproj" />
+  <ProjectReference Include="..\DocumentProcessor\Api\Api.csproj" />
+</ItemGroup>
 ```
 
-## Running Tests
+Then register the services in your `Program.cs`:
 
-To run the test suite:
+```csharp
+using Api.Ocr;
 
-```bash
-dotnet test
+var builder = WebApplication.CreateBuilder(args);
+
+// Add DocumentProcessor OCR services
+builder.Services.AddOcrDocumentProcessing(builder.Configuration);
+
+var app = builder.Build();
 ```
 
-## Project Structure
+### Option 3: Blazor WebAssembly Component
 
-- **Api**: RESTful API backend service
-- **Bardcoded.Wasm**: Blazor WebAssembly frontend application
-- **Data**: Shared data models and DTOs
-- **Bardcoded.AppHost**: .NET Aspire orchestration host
-- **Bardcoded.ServiceDefaults**: Shared service configuration
-- **Bardcoded.Tests**: Unit and integration tests
+To use the interactive document processing UI in your Blazor application:
+
+1. Reference the Wasm project:
+
+```xml
+<ItemGroup>
+  <ProjectReference Include="..\DocumentProcessor\Wasm\Wasm.csproj" />
+</ItemGroup>
+```
+
+2. Add the component to your page:
+
+```razor
+@page "/process-document"
+<DocumentProcessing />
+```
+
+## API Endpoints
+
+The DocumentController provides the following endpoints:
+
+### POST /api/document/preprocess
+Run preprocessing on an image without DPI resampling. Returns base64-encoded preprocessed image.
+
+**Request Body:**
+```json
+{
+  "imageBase64": "base64-encoded-image",
+  "filename": "document.jpg",
+  "jobId": "optional-job-id",
+  "denoise": false,
+  "deskew": true,
+  "fuzzPercent": 30,
+  "deskewThreshold": 40,
+  "contrastType": "sigmoidal",
+  "contrastStrength": 3.0,
+  "contrastMidpoint": 120
+}
+```
+
+### POST /api/document/ocr
+Run OCR on a preprocessed image with DPI resampling and safety checks.
+
+**Request Body:**
+```json
+{
+  "imageBase64": "base64-encoded-preprocessed-image",
+  "jobId": "optional-job-id",
+  "ocrEngine": "paddle",
+  "targetDpi": 300,
+  "device": "auto"
+}
+```
+
+### POST /api/document/inference
+Run model inference on OCR results to extract structured fields.
+
+**Request Body:**
+```json
+{
+  "ocrResult": { /* OCR result object */ },
+  "imageBase64": "base64-encoded-image",
+  "jobId": "optional-job-id",
+  "model": "naver-clova-ix/donut-base-finetuned-cord-v2",
+  "modelType": "donut",
+  "device": "auto"
+}
+```
+
+### GET /api/document/status/{jobId}
+Get the status of a document processing job.
 
 ## Configuration
 
-Configuration files are located in:
-- `Api/appsettings.json` - API service configuration
-- `Bardcoded.Wasm/wwwroot/appsettings.json` - Frontend configuration
+### OCR Configuration
 
-### Barcode Data Providers
-
-Bardcode uses external APIs to retrieve product information from barcodes. The system supports multiple barcode data providers that are configured in `Api/appsettings.json` under the `Application.Integrations` section.
-
-#### Supported Providers
-
-**Setting the API Key (Security Best Practice):**
-
-**IMPORTANT:** Never store API keys directly in configuration files as this is a security risk. Instead, set the API key using an environment variable or command-line argument.
-
-**Option 1: Environment Variable (Recommended)**
-
-Set the environment variable using the hierarchical configuration key format:
-
-```bash
-# Linux/macOS
-export Application__Integrations__0__key="your-api-key-here"
-
-# Windows (Command Prompt)
-set Application__Integrations__0__key=your-api-key-here
-
-# Windows (PowerShell)
-$env:Application__Integrations__0__key="your-api-key-here"
-```
-
-**Note:** The index `0` corresponds to the first provider in the `Integrations` array. Adjust the index based on the provider's position in your configuration.
-
-**Option 2: Command-Line Argument**
-
-When running the application, pass the API key as a command-line argument:
-
-```bash
-dotnet run --project Api/Api.csproj --Application:Integrations:0:key="your-api-key-here"
-```
-
-**Option 3: User Secrets (Development Only)**
-
-For local development, use the .NET user secrets feature:
-
-```bash
-cd Api
-dotnet user-secrets set "Application:Integrations:0:key" "your-api-key-here"
-```
-
-The application includes three barcode data providers, each with different features, costs, and requirements:
-
-##### 1. UPC Database
-
-**Website:** https://upcdatabase.org/
-
-**Features:**
-- Supports UPC barcodes
-- Requires API key authentication
-- Provides product titles, descriptions, and images
-
-**Account Setup:**
-1. Create an account at https://upcdatabase.org/
-2. Navigate to your account settings to generate an API key
-3. Copy your API key
-
-**Rate Limits & Pricing:**
-- Free tier: 100 requests per day
-- Paid plans available with higher limits
-- See https://upcdatabase.org/api for current pricing and rate limits
-
-**License:**
-- Review the terms of service at https://upcdatabase.org/terms
-
-**Configuration:**
-
-The UPC Database provider is pre-configured in `Api/appsettings.json` with an empty `key` field:
+Configure OCR settings in your `appsettings.json`:
 
 ```json
 {
-  "$type": "UpcDatabaseApiProvider",
-  "url": "https://api.upcdatabase.org",
-  "path": "product/{barcode}",
-  "key": "",
-  "allowedBarcodeTypes": [ "UPC" ]
-}
-```
-
-##### 2. Open Food Facts
-
-**Website:** https://world.openfoodfacts.org/
-
-**Features:**
-- Free and open database
-- No API key required
-- Supports EAN-13, EAN-8, UPC-A, UPC-E barcodes
-- Primarily focused on food products
-- Community-driven database
-
-**Account Setup:**
-- No account or API key required
-- Optional: Create an account to contribute product data
-
-**Rate Limits & Pricing:**
-- Completely free
-- Fair use policy: Please be respectful of the API and avoid excessive requests
-- See https://world.openfoodfacts.org/data for API documentation
-
-**License:**
-- Open Database License (ODbL)
-- Data is freely available
-- Read more at https://world.openfoodfacts.org/terms-of-use
-
-**Configuration:**
-
-The default configuration in `Api/appsettings.json` works without modification:
-
-```json
-{
-  "$type": "OpenFoodFactsApiProvider",
-  "url": "https://world.openfoodfacts.org",
-  "path": "api/v2/product/{barcode}.json",
-  "key": "",
-  "allowedBarcodeTypes": [ "EAN-13", "EAN-8", "UPC-A", "UPC-E" ]
-}
-```
-
-No API key is needed for Open Food Facts.
-
-##### 3. Barcode Lookup
-
-**Website:** https://www.barcodelookup.com/
-
-**Features:**
-- Comprehensive barcode database
-- Supports UPC-A, UPC-E, EAN-13, EAN-8, ISBN-10, ISBN-13
-- Provides detailed product information including features, images, and metadata
-- Commercial-grade API
-
-**Account Setup:**
-1. Create an account at https://www.barcodelookup.com/
-2. Sign up for an API plan at https://www.barcodelookup.com/api
-3. Copy your API key from your account dashboard
-
-**Rate Limits & Pricing:**
-- Free tier: Limited requests per month (check current limits)
-- Paid plans: Various tiers with different rate limits
-- See https://www.barcodelookup.com/api#plans for current pricing
-- Rate limit documentation: https://www.barcodelookup.com/api#rate-limiting
-
-**License:**
-- Commercial API with terms of service
-- Review the API License Agreement at https://www.barcodelookup.com/api#license
-- End User License Agreement: https://www.barcodelookup.com/eula
-
-**Configuration:**
-
-The Barcode Lookup provider is pre-configured in `Api/appsettings.json` with an empty `key` field:
-
-```json
-{
-  "$type": "BarcodeLookupApiProvider",
-  "url": "https://api.barcodelookup.com",
-  "path": "v3/products?barcode={barcode}&key=",
-  "key": "",
-  "allowedBarcodeTypes": [ "UPC-A", "UPC-E", "EAN-13", "EAN-8", "ISBN-10", "ISBN-13" ]
-}
-```
-
-**Setting the API Key (Security Best Practice):**
-
-**IMPORTANT:** Never store API keys directly in configuration files as this is a security risk. Instead, set the API key using an environment variable or command-line argument.
-
-**Option 1: Environment Variable (Recommended)**
-
-Set the environment variable using the hierarchical configuration key format:
-
-```bash
-# Linux/macOS
-export Application__Integrations__2__key="your-api-key-here"
-
-# Windows (Command Prompt)
-set Application__Integrations__2__key=your-api-key-here
-
-# Windows (PowerShell)
-$env:Application__Integrations__2__key="your-api-key-here"
-```
-
-**Note:** The index `2` corresponds to the third provider in the `Integrations` array (Barcode Lookup is third by default). Adjust the index based on the provider's position in your configuration.
-
-**Option 2: Command-Line Argument**
-
-When running the application, pass the API key as a command-line argument:
-
-```bash
-dotnet run --project Api/Api.csproj --Application:Integrations:2:key="your-api-key-here"
-```
-
-**Option 3: User Secrets (Development Only)**
-
-For local development, use the .NET user secrets feature:
-
-```bash
-cd Api
-dotnet user-secrets set "Application:Integrations:2:key" "your-api-key-here"
-```
-
-#### Provider Priority
-
-The system queries providers in the order they appear in the configuration file. Once a provider successfully returns product data, subsequent providers are not queried. You can reorder the providers in `appsettings.json` to change the priority.
-
-#### Disabling Providers
-
-To disable a provider, you can either:
-- Remove it from the `Application.Integrations` array in `appsettings.json`
-- Leave the `key` field empty (for providers that require authentication)
-
-#### Example Complete Configuration
-
-Here's an example of the complete configuration in `appsettings.json` with all three providers. **Note:** The `key` fields should remain empty in the configuration file.
-
-```json
-"Application": {
-  "Integrations": [
-    {
-      "$type": "OpenFoodFactsApiProvider",
-      "url": "https://world.openfoodfacts.org",
-      "path": "api/v2/product/{barcode}.json",
-      "key": "",
-      "allowedBarcodeTypes": [ "EAN-13", "EAN-8", "UPC-A", "UPC-E" ]
-    },
-    {
-      "$type": "UpcDatabaseApiProvider",
-      "url": "https://api.upcdatabase.org",
-      "path": "product/{barcode}",
-      "key": "",
-      "allowedBarcodeTypes": [ "UPC" ]
-    },
-    {
-      "$type": "BarcodeLookupApiProvider",
-      "url": "https://api.barcodelookup.com",
-      "path": "v3/products?barcode={barcode}&key=",
-      "key": "",
-      "allowedBarcodeTypes": [ "UPC-A", "UPC-E", "EAN-13", "EAN-8", "ISBN-10", "ISBN-13" ]
-    }
-  ],
-  "Features": {
-    "FetchFromApis": true,
-    "UseDatabase": true,
-    "UseCache": false
+  "Ocr": {
+    "model_name_or_path": "microsoft/layoutlmv3-base",
+    "device": "auto",
+    "ocr_engine": "paddle",
+    "detection_mode": "word",
+    "box_normalization_scale": 1000,
+    "python_service_path": "./Ocr/cli.py",
+    "temp_storage_path": "./temp/documents",
+    "max_file_size": 10485760,
+    "temp_file_ttl_hours": 1,
+    "enable_gpu": true,
+    "min_confidence_threshold": 0.8
   }
 }
 ```
 
-**Setting API Keys Securely:**
+#### Configuration Options
 
-Set the API keys using environment variables instead of hardcoding them in the configuration:
+| Option | Description | Default |
+|--------|-------------|---------|
+| `model_name_or_path` | HuggingFace model name or local path | `microsoft/layoutlmv3-base` |
+| `device` | Compute device: `auto`, `cuda`, `cpu` | `auto` |
+| `ocr_engine` | OCR engine: `paddle` or `tesseract` | `paddle` |
+| `detection_mode` | Detection mode: `word` or `line` | `word` |
+| `box_normalization_scale` | Bounding box scale for models | `1000` |
+| `python_service_path` | Path to Python CLI script | `./Ocr/cli.py` |
+| `temp_storage_path` | Temporary file storage location | `./temp/documents` |
+| `max_file_size` | Maximum upload size in bytes | `10485760` (10MB) |
+| `temp_file_ttl_hours` | Temporary file retention time | `1` hour |
+| `enable_gpu` | Enable GPU acceleration | `true` |
+| `min_confidence_threshold` | Minimum field confidence (0.0-1.0) | `0.8` |
 
-```bash
-# Set UPC Database API key (index 1)
-export Application__Integrations__1__key="your-upcdatabase-key"
+### API Integration Configuration
 
-# Set Barcode Lookup API key (index 2)
-export Application__Integrations__2__key="your-barcodelookup-key"
+If your application needs to integrate with external barcode APIs, configure them in the `Application.Integrations` section of `appsettings.json`. The DocumentProcessor component itself focuses on OCR and document processing, but can be extended to support barcode lookups.
+
+## Extension Points
+
+The DocumentProcessor component is designed to be extensible:
+
+### Custom Document Processors
+
+Implement the `IDocumentProcessor` interface to create custom processing pipelines:
+
+```csharp
+public interface IDocumentProcessor
+{
+    Task<PreprocessingResult> PreprocessImageAsync(PreprocessingRequest request);
+    Task<OcrResult> RunOcrAsync(OcrRequest request);
+    Task<InferenceResult> RunInferenceAsync(InferenceRequest request);
+    Task<JobStatus?> GetJobStatusAsync(string jobId);
+}
 ```
 
-In this example, Open Food Facts is queried first (free and no authentication required), followed by UPC Database, and finally Barcode Lookup.
+### Service Registration
 
-## Receipt OCR Feature
+Register your custom implementation in `Program.cs`:
 
-Bardcode includes an advanced Receipt OCR feature that uses machine learning to extract structured data from receipt images. This feature combines optical character recognition (OCR) with a layout-aware model (LayoutLMv3) to accurately identify and extract fields like vendor names, dates, amounts, and line items.
+```csharp
+// Use the built-in implementation
+builder.Services.AddOcrDocumentProcessing(builder.Configuration);
 
-### OCR Architecture
+// Or register a custom implementation
+builder.Services.AddSingleton<IDocumentProcessor, MyCustomDocumentProcessor>();
+```
 
-The Receipt OCR system uses a hybrid architecture:
+## Document OCR Pipeline
 
-1. **API Service (C#/.NET)**: Handles file uploads, job management, and orchestrates the Python OCR pipeline
-2. **Python OCR Service**: Performs actual image processing, OCR, and field extraction
-3. **GPU Acceleration**: Supports CUDA-enabled GPUs for faster processing (falls back to CPU)
+The DocumentProcessor includes an advanced OCR pipeline that uses machine learning to extract structured data from document images (receipts, invoices, forms). It combines optical character recognition with layout-aware transformer models (LayoutLMv3, Donut, IDEFICS2) to accurately identify and extract fields like vendor names, dates, amounts, and line items.
+
+### Architecture
+
+The DocumentProcessor uses a hybrid architecture:
+
+1. **API Service (C#/.NET)**: Handles HTTP requests, validation, and orchestrates the Python OCR pipeline
+2. **Python OCR Service**: Performs image processing, OCR, and ML-based field extraction
+3. **Blazor Component**: Provides interactive UI for document processing with live preview
+4. **GPU Acceleration**: Supports CUDA-enabled GPUs for faster processing (falls back to CPU)
 
 ```
                     ┌─────────────────────────┐
-                    │   Blazor Client         │
-                    │  (Image Upload UI)      │
+                    │   Blazor Component      │
+                    │  (DocumentProcessing)   │
                     └───────────┬─────────────┘
                                 │ HTTP POST
                                 ▼
                     ┌─────────────────────────┐
                     │   .NET API Service      │
-                    │  (ReceiptsController)   │
-                    │  - File validation      │
-                    │  - Job management       │
+                    │  (DocumentController)   │
+                    │  - Request validation   │
+                    │  - Base64 handling      │
                     └───────────┬─────────────┘
-                                │ Background Thread
-                                │ (Process.Start)
+                                │ Process.Start
+                                │ (Python subprocess)
                                 ▼
                     ┌─────────────────────────┐
                     │   Python OCR CLI        │
-                    │   (Bardcoded.Ocr)       │
+                    │   (Ocr/cli.py)          │
                     │  - Image preprocessing  │
                     │  - PaddleOCR / Tesseract│
-                    │  - LayoutLMv3 inference │
+                    │  - Model inference      │
                     │  - Field extraction     │
                     └─────────────────────────┘
 ```
@@ -492,23 +356,29 @@ The Receipt OCR system uses a hybrid architecture:
    - Line item grouping
    - Currency detection
 
-### Setting Up OCR
+### Python OCR Service Setup
 
-#### Prerequisites
+The Python OCR service is located in the `Ocr/` directory. See [Ocr/README.md](Ocr/README.md) for complete setup instructions.
 
-1. **Python 3.10+**: Required for the OCR service
-2. **GPU Support** (optional but recommended): NVIDIA GPU with CUDA support
-
-#### Installing Python Dependencies
-
-Navigate to the OCR project directory and install dependencies:
+#### Quick Start
 
 ```bash
-cd Bardcoded.Ocr
+cd Ocr
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
+
+# Test the installation
+python cli.py version
 ```
 
-For GPU support on Linux:
+#### GPU Support
+
+For CUDA GPU acceleration on Linux:
 ```bash
 pip install paddlepaddle-gpu
 ```
@@ -518,116 +388,78 @@ For CPU-only or macOS:
 pip install paddlepaddle
 ```
 
-#### Required System Dependencies
-
-**Tesseract OCR** (fallback engine):
-
-Ubuntu/Debian:
-```bash
-sudo apt-get install tesseract-ocr tesseract-ocr-eng
-```
-
-macOS:
-```bash
-brew install tesseract
-```
-
-Windows: Download from [Tesseract GitHub](https://github.com/UB-Mannheim/tesseract/wiki)
-
-**ImageMagick** (required for image preprocessing):
-
-ImageMagick CLI is used for optimal image preprocessing to improve OCR accuracy.
-
-Ubuntu/Debian:
-```bash
-sudo apt-get install imagemagick
-```
-
-macOS:
-```bash
-brew install imagemagick
-```
-
-Windows:
-1. Download the ImageMagick installer from [ImageMagick Downloads](https://imagemagick.org/script/download.php#windows)
-2. During installation, ensure you check the option "Install development headers and libraries for C and C++"
-3. Add ImageMagick to your system PATH
-
-Verify installation:
-```bash
-magick --version
-```
-
-See `Bardcoded.Ocr/README.md` for details on using the preprocessing scripts manually.
-
-### Using the OCR Feature
+### Using the Document Processor
 
 #### Via API
 
-**Upload a receipt:**
+**Preprocess a document:**
 ```bash
-curl -X POST http://localhost:5000/api/receipts/upload \
-  -F "files=@receipt.jpg" \
-  -F "merchantId=store-123"
+curl -X POST http://localhost:5000/api/document/preprocess \
+  -H "Content-Type: application/json" \
+  -d '{
+    "imageBase64": "base64-encoded-image-data",
+    "filename": "document.jpg",
+    "deskew": true,
+    "denoise": false
+  }'
 ```
 
-Response:
-```json
-{
-  "jobId": "abc123-def456",
-  "status": "processing",
-  "statusUrl": "/api/receipts/status/abc123-def456",
-  "resultUrl": "/api/receipts/result/abc123-def456"
-}
+**Run OCR:**
+```bash
+curl -X POST http://localhost:5000/api/document/ocr \
+  -H "Content-Type: application/json" \
+  -d '{
+    "imageBase64": "base64-encoded-preprocessed-image",
+    "ocrEngine": "paddle",
+    "targetDpi": 300
+  }'
 ```
 
-**Check status:**
+**Extract fields:**
 ```bash
-curl http://localhost:5000/api/receipts/status/abc123-def456
-```
-
-**Get results:**
-```bash
-curl http://localhost:5000/api/receipts/result/abc123-def456
+curl -X POST http://localhost:5000/api/document/inference \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ocrResult": {...},
+    "imageBase64": "base64-encoded-image",
+    "modelType": "donut"
+  }'
 ```
 
 #### Via Python CLI
 
-Process a single receipt:
+Process a single document:
 ```bash
-cd Bardcoded.Ocr
-python cli.py process --image receipt.jpg
+cd Ocr
+python cli.py process --image document.jpg --output result.json
 ```
 
-Process with output file:
-```bash
-python cli.py process --image receipt.jpg --output result.json
-```
-
-Process with options:
+Process with preprocessing options:
 ```bash
 python cli.py process \
-  --image receipt.jpg \
+  --image document.jpg \
+  --output result.json \
   --ocr-engine paddle \
   --device cuda \
   --denoise \
-  --deskew \
-  --model microsoft/layoutlmv3-base
-
-  # or 
-
-   python cli.py process --image tests/test-receipts/receipt-3.jpg --output tests/test-receipts/result.json --ocr-engine tesseract --model microsoft/layoutlmv3-base --debug --debug-output-dir ./tests/test-receipts/receipt-3/ --denoise --deskew
-
-
-
+  --deskew
 ```
 
-Process multi-page receipt:
+Process multi-page document:
 ```bash
 python cli.py process \
   --image page1.jpg \
   --image page2.jpg \
   --output result.json
+```
+
+Debug mode (saves intermediate images):
+```bash
+python cli.py process \
+  --image document.jpg \
+  --output result.json \
+  --debug \
+  --debug-output-dir ./debug_output
 ```
 
 #### Separate Pipeline Commands
@@ -751,169 +583,218 @@ All bounding boxes are normalized to a 0-1000 scale for consistency with LayoutL
 - `x1`: Right edge (0-1000)
 - `y1`: Bottom edge (0-1000)
 
-### Configuration
+### Output Format
 
-OCR settings are configured in `Api/appsettings.json`:
+The OCR pipeline returns structured JSON with extracted fields:
 
 ```json
 {
-  "Ocr": {
-    "model_name_or_path": "microsoft/layoutlmv3-base",
-    "device": "auto",
-    "ocr_engine": "paddle",
-    "detection_mode": "word",
-    "box_normalization_scale": 1000,
-    "python_service_path": "./Bardcoded.Ocr/cli.py",
-    "temp_storage_path": "./temp/receipts",
-    "max_file_size": 10485760,
-    "temp_file_ttl_hours": 24,
-    "enable_gpu": true,
-    "min_confidence_threshold": 0.5
-  }
+  "job_id": "abc123",
+  "status": "done",
+  "pages": [
+    {
+      "page_number": 1,
+      "raw_ocr_text": "STORE NAME\n123 Main St...",
+      "words": [
+        {
+          "text": "STORE",
+          "box": { "x0": 100, "y0": 50, "x1": 200, "y1": 80 },
+          "confidence": 0.98
+        }
+      ]
+    }
+  ],
+  "vendor_name": {
+    "value": "STORE NAME",
+    "confidence": 0.95,
+    "box": { "x0": 100, "y0": 50, "x1": 300, "y1": 80 }
+  },
+  "date": {
+    "value": "2024-01-15",
+    "confidence": 0.92
+  },
+  "total_amount": {
+    "value": "25.99",
+    "confidence": 0.96
+  },
+  "line_items": [
+    {
+      "description": "Product 1",
+      "quantity": 1.0,
+      "unit_price": 12.99,
+      "line_total": 12.99,
+      "confidence": 0.89
+    }
+  ]
 }
 ```
 
-### Troubleshooting OCR
+## Running Tests
+
+### .NET Tests
+
+```bash
+dotnet test
+```
+
+### Python Tests
+
+```bash
+cd Ocr
+
+# Run all tests
+python -m pytest tests/
+
+# Run unit tests only (fast, no dependencies)
+python -m pytest tests/test_cli_unit.py
+
+# Run with coverage
+python -m pytest tests/ --cov=. --cov-report=html
+```
+
+## Troubleshooting
 
 **No OCR results returned:**
-- Ensure Python dependencies are installed: `pip install -r Bardcoded.Ocr/requirements.txt`
+- Ensure Python dependencies are installed: `pip install -r Ocr/requirements.txt`
 - Check that PaddleOCR or Tesseract is working: `python -c "from paddleocr import PaddleOCR; print('OK')"`
-- Verify image is readable and in supported format (JPEG, PNG)
+- Verify image is readable and in supported format (JPEG, PNG, TIFF)
 
 **GPU not being used:**
 - Check CUDA installation: `python -c "import torch; print(torch.cuda.is_available())"`
 - Ensure paddlepaddle-gpu is installed instead of paddlepaddle
-- Set `enable_gpu: true` in configuration
+- Set `enable_gpu: true` in `appsettings.json`
 
 **Low accuracy:**
-- Try enabling preprocessing: `--denoise --deskew`
+- Try enabling preprocessing options: `--denoise --deskew`
 - Ensure image is high resolution (300 DPI recommended)
 - Use well-lit, non-blurry images
+- Adjust preprocessing parameters (contrast, fuzz percentage)
 
 **Process timeout:**
 - First run downloads models (~500MB), subsequent runs are faster
 - Increase timeout in configuration if using CPU
+- Consider using GPU acceleration for better performance
 
-### Document Processing Live View
+### Blazor Component Usage
 
-The Document Processing Live View feature provides an interactive UI for processing document images with real-time preview of preprocessing effects. This allows users to optimize preprocessing settings before running OCR.
+The `DocumentProcessing.razor` component provides an interactive UI for document processing with live preview:
 
-#### Features
+1. **Upload a document image**: Select a file from your device
+2. **Adjust preprocessing settings**: Modify deskew, denoise, contrast parameters
+3. **Preview results**: See preprocessed image before running OCR
+4. **Run OCR**: Extract text with bounding boxes
+5. **Extract fields**: Get structured data (vendor, date, amounts, line items)
 
-- **Side-by-side image comparison**: View original and preprocessed images together
-- **Live preview**: Settings changes trigger automatic preview updates after 5 seconds
-- **Progress indicators**: Timer circle shows countdown; spinner shows API processing
-- **Phased workflow**: Separate preprocessing and OCR phases with navigation
-- **Adjustable settings**: Control deskew, denoise, contrast, and other preprocessing parameters
+The component handles the entire workflow through the three-phase pipeline (preprocess → OCR → inference).
 
-#### API Endpoints
+## Advanced Topics
 
-The document processing API is isolated and can be found in `Api/Ocr/`:
+### Building the Python OCR Service
 
-**POST /api/document/preprocess**
-Run preprocessing on an image without DPI resampling. Returns base64 encoded preprocessed image.
-
-Request body:
-```json
-{
-  "imageBase64": "base64-encoded-image-data",
-  "filename": "receipt.jpg",
-  "jobId": "optional-job-id",
-  "denoise": false,
-  "deskew": true,
-  "fuzzPercent": 30,
-  "deskewThreshold": 40,
-  "contrastType": "sigmoidal",
-  "contrastStrength": 3.0,
-  "contrastMidpoint": 120
-}
-```
-
-**POST /api/document/ocr**
-Run OCR on a preprocessed image. Includes DPI resampling and safety checks.
-
-Request body:
-```json
-{
-  "imageBase64": "base64-encoded-preprocessed-image",
-  "jobId": "optional-job-id",
-  "ocrEngine": "paddle",
-  "targetDpi": 300,
-  "device": "auto"
-}
-```
-
-**POST /api/document/inference**
-Run model inference on OCR results to extract structured fields.
-
-Request body:
-```json
-{
-  "ocrResult": { /* OCR result object */ },
-  "imageBase64": "base64-encoded-image",
-  "jobId": "optional-job-id",
-  "model": "naver-clova-ix/donut-base-finetuned-cord-v2",
-  "modelType": "donut",
-  "device": "auto"
-}
-```
-
-**GET /api/document/status/{jobId}**
-Get the status of a document processing job.
-
-#### Using the Live View Component
-
-Navigate to `/document-processing` in the web application to access the document processing live view.
-
-1. **Select an image**: Upload a receipt or document image
-2. **Adjust settings**: Modify preprocessing parameters (deskew, denoise, contrast, etc.)
-3. **Wait for preview**: After 5 seconds of no changes, preprocessing runs automatically
-4. **Accept preprocessing**: Click "Done - Continue to OCR" when satisfied with the preview
-5. **Review OCR results**: View extracted text and fields
-6. **Accept or retry**: Click "Accept Result" or "Go Back" to adjust settings
-
-### Building the OCR Project
-
-The OCR project is a Python project included in the Visual Studio solution:
+The Python OCR service can be built as a standalone package or containerized:
 
 ```bash
+cd Ocr
+
 # Install dependencies
-cd Bardcoded.Ocr
 pip install -r requirements.txt
 
-# Run tests (if available)
+# Run tests
 python -m pytest tests/
 
-# Run directly
+# Test CLI
 python cli.py version
 python cli.py process --help
+
+# Build Docker image (optional)
+docker build -t document-processor-ocr .
 ```
 
-### OCR Project Structure
+### Supported ML Models
 
+The component supports multiple transformer models for field extraction:
+
+| Model | Type | License | Best For |
+|-------|------|---------|----------|
+| Donut | OCR-free | MIT | Fast processing, receipt-specific |
+| IDEFICS2 | Multimodal | Apache 2.0 | High accuracy, flexible |
+| LayoutLMv3 | Token classification | - | Custom fine-tuning |
+
+See [Ocr/README.md](Ocr/README.md) for model-specific configuration.
+
+## Performance
+
+Typical performance on a document (1-2 pages, 300 DPI):
+
+| Hardware | Preprocessing | OCR | Inference | Total |
+|----------|--------------|-----|-----------|-------|
+| CPU only | 1-2s | 2-4s | 8-15s | 11-21s |
+| GPU (CUDA) | 1-2s | 1-2s | 1-3s | 3-7s |
+
+## Example Integration
+
+Here's a complete example of integrating DocumentProcessor into an ASP.NET Core application:
+
+```csharp
+// Program.cs
+using Api.Ocr;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add DocumentProcessor services
+builder.Services.AddOcrDocumentProcessing(builder.Configuration);
+
+// Add controllers
+builder.Services.AddControllers();
+
+var app = builder.Build();
+
+app.MapControllers();
+app.Run();
 ```
-Bardcoded.Ocr/
-├── cli.py                    # Command-line interface
-├── requirements.txt          # Python dependencies
-├── Bardcoded.Ocr.pyproj     # Visual Studio project file
-├── Dockerfile               # Container configuration
-├── config/
-│   └── config.yaml          # Default configuration
-├── docs/
-│   └── fine_tuning.md       # Model training guide
-└── src/
-    ├── __init__.py
-    ├── config.py            # Configuration management
-    ├── receipt_processor.py # Main pipeline orchestrator
-    ├── models/
-    │   ├── base.py          # Base model interface
-    │   └── layoutlmv3.py    # LayoutLMv3 implementation
-    ├── ocr/
-    │   └── ocr_engine.py    # OCR engine abstraction
-    ├── preprocessing/
-    │   └── image_preprocessor.py
-    └── postprocessing/
-        └── field_extractor.py
+
+```csharp
+// YourController.cs
+[ApiController]
+[Route("api/[controller]")]
+public class MyDocumentController : ControllerBase
+{
+    private readonly IDocumentProcessor _processor;
+    
+    public MyDocumentController(IDocumentProcessor processor)
+    {
+        _processor = processor;
+    }
+    
+    [HttpPost("process")]
+    public async Task<IActionResult> ProcessDocument([FromBody] ProcessRequest request)
+    {
+        // Preprocess
+        var preprocessed = await _processor.PreprocessImageAsync(new PreprocessingRequest
+        {
+            ImageBase64 = request.ImageBase64,
+            Deskew = true,
+            Denoise = true
+        });
+        
+        // OCR
+        var ocrResult = await _processor.RunOcrAsync(new OcrRequest
+        {
+            ImageBase64 = preprocessed.PreprocessedImageBase64,
+            OcrEngine = "paddle"
+        });
+        
+        // Extract fields
+        var inference = await _processor.RunInferenceAsync(new InferenceRequest
+        {
+            OcrResult = ocrResult,
+            ImageBase64 = preprocessed.PreprocessedImageBase64,
+            ModelType = "donut"
+        });
+        
+        return Ok(inference);
+    }
+}
 ```
 
 ## License
@@ -922,4 +803,8 @@ Bardcoded.Ocr/
 
 ## Contributing
 
-[Add contribution guidelines if applicable]
+Contributions are welcome! Please see the contribution guidelines for this project.
+
+## Support
+
+For issues, questions, or feature requests, please open an issue on the GitHub repository.

@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace Data
 {
     /// <summary>
-    /// Configuration for the OCR and receipt processing pipeline
+    /// Configuration for the OCR and document processing pipeline
     /// </summary>
     public class OcrConfiguration
     {
@@ -41,13 +41,13 @@ namespace Data
         /// Path to the Python OCR service executable
         /// </summary>
         [JsonPropertyName("python_service_path")]
-        public string PythonServicePath { get; set; } = "./Bardcoded.Ocr/cli.py";
+        public string PythonServicePath { get; set; } = "./Ocr/cli.py";
 
         /// <summary>
         /// Temporary storage path for uploaded images
         /// </summary>
         [JsonPropertyName("temp_storage_path")]
-        public string TempStoragePath { get; set; } = "./temp/receipts";
+        public string TempStoragePath { get; set; } = "./temp/documents";
 
         /// <summary>
         /// Maximum image file size in bytes (default: 10MB)
