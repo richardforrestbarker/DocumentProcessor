@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Data
+namespace DocumentProcessor.Data
 {
     public class ApiConfiguration
     {

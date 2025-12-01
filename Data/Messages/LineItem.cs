@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Data.Messages
+namespace DocumentProcessor.Data.Messages
 {
     /// <summary>
     /// Represents a line item from a receipt

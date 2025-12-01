@@ -1,14 +1,14 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
-using Data.Ocr.Messages;
-using Data.Messages;
-using Data.Ocr;
-using Data;
-using Data.Messages;
+using DocumentProcessor.Data.Ocr.Messages;
+using DocumentProcessor.Data.Messages;
+using DocumentProcessor.Data.Ocr;
+using DocumentProcessor.Data;
+using DocumentProcessor.Data.Messages;
 using Microsoft.Extensions.Logging;
 
-namespace Api.Ocr
+namespace DocumentProcessor.Api.Ocr
 {
 
     /// <summary>

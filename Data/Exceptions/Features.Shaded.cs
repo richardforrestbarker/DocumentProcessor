@@ -1,4 +1,4 @@
-namespace Shaded.Microsoft.AspNetCore.Mvc;
+namespace DocumentProcessor.Shaded.Microsoft.AspNetCore.Mvc;
 //
 // Summary:
 //     Used to evaluate whether a feature is enabled or disabled.

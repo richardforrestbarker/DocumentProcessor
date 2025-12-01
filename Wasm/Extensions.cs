@@ -1,13 +1,13 @@
 using Clients;
-using Data;
-using Data.Ocr;
+using DocumentProcessor.Data;
+using DocumentProcessor.Data.Ocr;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-namespace Wasm
+namespace DocumentProcessor.Wasm
 {
     public static class Extensions {
 

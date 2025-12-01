@@ -3,7 +3,7 @@ using Data.Ocr;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Api.Ocr
+namespace DocumentProcessor.Api.Ocr
 {
     /// <summary>
     /// Extension methods for registering OCR-related services.

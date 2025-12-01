@@ -1,4 +1,4 @@
-namespace Data.Ocr.Messages
+namespace DocumentProcessor.Data.Ocr.Messages
 {
     /// <summary>
     /// Job status for tracking long-running operations.

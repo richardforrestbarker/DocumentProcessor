@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Data.Messages
+namespace DocumentProcessor.Data.Messages
 {
     /// <summary>
     /// Represents a single word from OCR with its bounding box and confidence

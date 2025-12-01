@@ -1,6 +1,6 @@
-using Data.Ocr.Messages;
+using DocumentProcessor.Data.Ocr.Messages;
 
-namespace Data.Ocr
+namespace DocumentProcessor.Data.Ocr
 {
     /// <summary>
     /// Interface for document processing service for the OCR pipeline live view.

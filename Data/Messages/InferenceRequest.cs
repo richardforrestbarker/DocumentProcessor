@@ -1,4 +1,4 @@
-namespace Data.Ocr.Messages
+namespace DocumentProcessor.Data.Ocr.Messages
 {
     /// <summary>
     /// Request for running model inference.

@@ -1,4 +1,4 @@
-namespace Data.Ocr.Messages
+namespace DocumentProcessor.Data.Ocr.Messages
 {
     /// <summary>
     /// Result from preprocessing.

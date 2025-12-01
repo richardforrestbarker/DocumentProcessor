@@ -1,11 +1,11 @@
-using Api.Ocr;
-using Data.Ocr.Messages;
-using Data.Messages;
-using Data.Ocr;
+using DocumentProcessor.Api.Ocr;
+using DocumentProcessor.Data.Ocr.Messages;
+using DocumentProcessor.Data.Messages;
+using DocumentProcessor.Data.Ocr;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
-namespace Api.Controllers
+namespace DocumentProcessor.Api.Controllers
 {
     /// <summary>
     /// Controller for document OCR processing live view pipeline.

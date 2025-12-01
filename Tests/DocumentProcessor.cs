@@ -1,9 +1,9 @@
 using Xunit;
-using Data.Messages;
-using Data.Ocr.Messages;
-using Data;
-using Api;
-using Wasm;
+using DocumentProcessor.Data.Messages;
+using DocumentProcessor.Data.Ocr.Messages;
+using DocumentProcessor.Data;
+using DocumentProcessor.Api;
+using DocumentProcessor.Wasm;
 using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;

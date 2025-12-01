@@ -1,5 +1,5 @@
-﻿using Data.Ocr;
-using Data.Ocr.Messages;
+﻿using DocumentProcessor.Data.Ocr;
+using DocumentProcessor.Data.Ocr.Messages;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Validation;
 using System.Net.Http.Json;

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Data
+namespace DocumentProcessor.Data
 {
     /// <summary>
     /// Configuration for the OCR and document processing pipeline

@@ -1,6 +1,6 @@
-using Data.Messages;
+using DocumentProcessor.Data.Messages;
 
-namespace Data.Ocr.Messages
+namespace DocumentProcessor.Data.Ocr.Messages
 {
     /// <summary>
     /// Result from model inference.

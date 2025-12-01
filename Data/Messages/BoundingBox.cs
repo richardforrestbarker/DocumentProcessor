@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Data.Messages
+namespace DocumentProcessor.Data.Messages
 {
     /// <summary>
     /// Represents a normalized bounding box in model coordinate space (0-1000 scale)
