@@ -6,7 +6,7 @@ namespace Clients
 {/// <summary>
  /// Handles client errors (4xx) that are thrown by the HttpClient. does not handle 5xx errors or other exceptions.
  /// </summary>
-    public class ClientErrorHandlingHttpMessageHandler : DelegatingHandler
+    internal class ClientErrorHandlingHttpMessageHandler : DelegatingHandler
     {
         private readonly Dictionary<HttpStatusCode?, Func<HttpResponseMessage, HttpRequestMessage, HttpRequestException, System.Threading.Tasks.Task>> StatusHandlers;
 

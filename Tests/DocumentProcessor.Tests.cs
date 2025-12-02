@@ -14,6 +14,7 @@ using System.Threading;
 using Clients;
 using System.Net.Http;
 using DocumentProcessor.Wasm.Components;
+using DocumentProcessor.Clients;
 
 namespace DocumentProcessor.Tests
 {

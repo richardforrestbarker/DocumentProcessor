@@ -1,7 +1,9 @@
+using DocumentProcessor.Api.Controllers;
 using DocumentProcessor.Data;
 using DocumentProcessor.Data.Ocr;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Runtime.CompilerServices;
 
 namespace DocumentProcessor.Api.Ocr
 {
@@ -22,13 +24,18 @@ namespace DocumentProcessor.Api.Ocr
             IConfiguration configuration)
         {
             // Configure OCR settings
-            var ocrConfig = configuration.GetSection("Ocr").Get<OcrConfiguration>() ?? new OcrConfiguration();
+            var ocrConfig = configuration.GetRequiredSection("Ocr").Get<OcrConfiguration>()!;
             services.AddSingleton(ocrConfig);
-            
+
             // Register the document processor
             services.AddSingleton<IDocumentProcessor, ServiceSideDocumentProcessor>();
-            
+
             return services;
+        }
+
+        public static IMvcBuilder AddOcrControllers(this IMvcBuilder builder)
+        {
+            return builder.AddApplicationPart(typeof(DocumentController).Assembly);
         }
     }
 }

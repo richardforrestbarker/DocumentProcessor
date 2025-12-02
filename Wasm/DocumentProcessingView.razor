@@ -48,9 +48,6 @@
                             <i class="bi bi-image" style="font-size: 4rem;"></i>
                             <p>No image selected</p>
                             <InputFile OnChange="HandleFileSelection" accept="image/*" class="form-control" id="imageInput" />
-                            <label for="imageInput" class="btn btn-primary mt-2">
-                                Select Image
-                            </label>
                         </div>
                     }
                 </div>
@@ -198,43 +195,43 @@
                 <div class="row">
                     <div class="col-md-4">
                         <div class="form-check mb-3">
-                            <input type="checkbox" class="form-check-input" id="deskew"
-                                   @bind="settings.Deskew" @bind:after="OnSettingsChanged" />
+                            <InputCheckbox class="form-check-input" id="deskew"
+                                   @bind-Value="settings.Deskew" @bind-Value:after="OnSettingsChanged" />
                             <label class="form-check-label" for="deskew">Deskew</label>
                         </div>
                         <div class="form-check mb-3">
-                            <input type="checkbox" class="form-check-input" id="denoise"
-                                   @bind="settings.Denoise" @bind:after="OnSettingsChanged" />
+                            <InputCheckbox class="form-check-input" id="denoise"
+                                   @bind-Value="settings.Denoise" @bind-Value:after="OnSettingsChanged" />
                             <label class="form-check-label" for="denoise">Denoise</label>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="mb-3">
                             <label for="fuzzPercent" class="form-label">
-                                Fuzz Percent: @settings.FuzzPercent%
+                                Fuzz Percent: @settings.FuzzPercent %
                             </label>
-                            <input type="range" class="form-range" id="fuzzPercent"
+                            <InputNumber type="range" class="form-range" id="fuzzPercent"
                                    min="0" max="100" step="5"
-                                   @bind="settings.FuzzPercent" @bind:after="OnSettingsChanged" />
+                                   @bind-Value="settings.FuzzPercent" @bind-Value:after="OnSettingsChanged" />
                         </div>
                         <div class="mb-3">
                             <label for="deskewThreshold" class="form-label">
-                                Deskew Threshold: @settings.DeskewThreshold%
+                                Deskew Threshold: @settings.DeskewThreshold %
                             </label>
-                            <input type="range" class="form-range" id="deskewThreshold"
+                            <InputNumber type="range" class="form-range" id="deskewThreshold"
                                    min="0" max="100" step="5"
-                                   @bind="settings.DeskewThreshold" @bind:after="OnSettingsChanged" />
+                                   @bind-Value="settings.DeskewThreshold" @bind-Value:after="OnSettingsChanged" />
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="mb-3">
                             <label for="contrastType" class="form-label">Contrast Type</label>
-                            <select class="form-select" id="contrastType"
-                                    @bind="settings.ContrastType" @bind:after="OnSettingsChanged">
+                            <InputSelect class="form-select" id="contrastType"
+                                    @bind-Value="settings.ContrastType" @bind-Value:after="OnSettingsChanged">
                                 <option value="sigmoidal">Sigmoidal</option>
                                 <option value="linear">Linear</option>
                                 <option value="none">None</option>
-                            </select>
+                            </InputSelect>
                         </div>
                         @if (settings.ContrastType == "sigmoidal")
                         {
@@ -242,17 +239,17 @@
                                 <label for="contrastStrength" class="form-label">
                                     Contrast Strength: @settings.ContrastStrength.ToString("F1")
                                 </label>
-                                <input type="range" class="form-range" id="contrastStrength"
+                                <InputNumber type="range" class="form-range" id="contrastStrength"
                                        min="1" max="10" step="0.5"
-                                       @bind="settings.ContrastStrength" @bind:after="OnSettingsChanged" />
+                                       @bind-Value="settings.ContrastStrength" @bind-Value:after="OnSettingsChanged" />
                             </div>
                             <div class="mb-3">
                                 <label for="contrastMidpoint" class="form-label">
-                                    Contrast Midpoint: @settings.ContrastMidpoint%
+                                    Contrast Midpoint: @settings.ContrastMidpoint %
                                 </label>
-                                <input type="range" class="form-range" id="contrastMidpoint"
+                                <InputNumber type="range" class="form-range" id="contrastMidpoint"
                                        min="0" max="200" step="10"
-                                       @bind="settings.ContrastMidpoint" @bind:after="OnSettingsChanged" />
+                                       @bind-Value="settings.ContrastMidpoint" @bind-Value:after="OnSettingsChanged" />
                             </div>
                         }
                     </div>
@@ -265,52 +262,31 @@
     <div class="d-flex justify-content-between mt-4">
         @if (currentPhase == ProcessingPhase.Ocr)
         {
-            <button class="btn btn-secondary" @onclick="GoBack" disabled="@isLoading">
+            <button class="btn btn-secondary" onclick="@GoBack" disabled="@isLoading">
                 <i class="bi bi-arrow-left me-2"></i>Go Back
             </button>
         }
         else
         {
-            <button class="btn btn-secondary" @onclick="Reset" disabled="@isLoading">
+            <button class="btn btn-secondary" onclick="@Reset" disabled="@isLoading">
                 <i class="bi bi-arrow-counterclockwise me-2"></i>Reset
             </button>
         }
 
         @if (currentPhase == ProcessingPhase.Preprocessing && !string.IsNullOrEmpty(preprocessedImageBase64))
         {
-            <button class="btn btn-primary" @onclick="AcceptPreprocessing" disabled="@isLoading">
+            <button class="btn btn-primary" onclick="@AcceptPreprocessing" disabled="@isLoading">
                 Done - Continue to OCR<i class="bi bi-arrow-right ms-2"></i>
             </button>
         }
         else if (currentPhase == ProcessingPhase.Ocr && inferenceResult != null)
         {
-            <button class="btn btn-success" @onclick="AcceptResult">
+            <button class="btn btn-success" onclick="@AcceptResult">
                 <i class="bi bi-check-lg me-2"></i>Accept Result
             </button>
         }
     </div>
 </div>
-
-<style>
-    .timer-progress {
-        display: flex;
-        align-items: center;
-    }
-
-        .timer-progress svg {
-            transform: rotate(-90deg);
-        }
-
-    .document-processing-view .card {
-        min-height: 400px;
-    }
-
-    .ocr-result pre {
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        font-size: 0.85rem;
-    }
-</style>
 
 @code {
     /// <summary>

@@ -6,7 +6,7 @@ using System.Net.Http.Json;
 using System.Reflection.Metadata;
 using System.Text.Json;
 
-namespace Clients
+namespace DocumentProcessor.Clients
 {
     public class ClientSideDocumentProcessor : IDocumentProcessor
     {

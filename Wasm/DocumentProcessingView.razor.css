@@ -1,0 +1,19 @@
+﻿
+.timer-progress {
+    display: flex;
+    align-items: center;
+}
+
+    .timer-progress svg {
+        transform: rotate(-90deg);
+    }
+
+.document-processing-view .card {
+    min-height: 400px;
+}
+
+.ocr-result pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 0.85rem;
+}

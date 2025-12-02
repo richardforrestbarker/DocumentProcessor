@@ -6,8 +6,9 @@ using System.Threading.Tasks;
 
 namespace DocumentProcessor.Data
 {
-    public class ApiConfiguration
+    public record ApiConfiguration
     {
-        public string? ApiUrl { get; set; } = "this wasnt set through appsettings";
+        public string ApiUrl { get; set; } = "this wasnt set through appsettings";
+        public string Name { get; set; } = "DocumentProcessorApi";
     }
 }
