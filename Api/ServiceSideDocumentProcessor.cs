@@ -536,6 +536,37 @@ namespace DocumentProcessor.Api.Ocr
 
         private string FindPythonExecutable()
         {
+            // If a virtual environment path is configured, use the Python interpreter from that venv
+            if (!string.IsNullOrWhiteSpace(_config.PythonVenvPath))
+            {
+                var venvPath = _config.PythonVenvPath;
+                
+                // Make path absolute if it's relative
+                if (!Path.IsPathRooted(venvPath))
+                {
+                    venvPath = Path.Combine(Directory.GetCurrentDirectory(), venvPath);
+                }
+                
+                venvPath = Path.GetFullPath(venvPath);
+                
+                // Determine the Python executable path based on OS
+                // Windows: venv/Scripts/python.exe
+                // Linux/Mac: venv/bin/python
+                var pythonPath = OperatingSystem.IsWindows()
+                    ? Path.Combine(venvPath, "Scripts", "python.exe")
+                    : Path.Combine(venvPath, "bin", "python");
+                
+                // If the venv Python exists, use it
+                if (File.Exists(pythonPath))
+                {
+                    _logger.LogInformation("Using Python from virtual environment: {PythonPath}", pythonPath);
+                    return pythonPath;
+                }
+                
+                _logger.LogWarning("Python virtual environment not found at {VenvPath}, falling back to system Python", venvPath);
+            }
+            
+            // Fallback to system Python if venv is not configured or not found
             var candidates = new[] { "python3", "python", "python3.11", "python3.10" };
             
             foreach (var candidate in candidates)
@@ -558,6 +589,7 @@ namespace DocumentProcessor.Api.Ocr
                         process.WaitForExit(5000);
                         if (process.ExitCode == 0)
                         {
+                            _logger.LogInformation("Using system Python: {Candidate}", candidate);
                             return candidate;
                         }
                     }
@@ -568,6 +600,7 @@ namespace DocumentProcessor.Api.Ocr
                 }
             }
             
+            _logger.LogWarning("No Python executable found, defaulting to 'python3'");
             return "python3";
         }
 
