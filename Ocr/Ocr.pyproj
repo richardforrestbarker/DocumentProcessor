@@ -40,8 +40,7 @@
     <Compile Include="tests\test_cli_integration.py" />
     <Compile Include="tests\test_cli_unit.py" />
     <Compile Include="tests\__init__.py" />
-  </ItemGroup>
-  <ItemGroup>
+
     <Folder Include="scripts\" />
     <Folder Include="src\" />
     <Folder Include="src\models\" />
@@ -52,8 +51,7 @@
     <Folder Include="docs\" />
     <Folder Include="tests\" />
     <Folder Include="tests\fixtures\" />
-  </ItemGroup>
-  <ItemGroup>
+
     <Content Include="requirements.txt" />
     <Content Include="Dockerfile" />
     <Content Include="README.md" />
