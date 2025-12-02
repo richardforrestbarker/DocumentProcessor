@@ -539,15 +539,8 @@ namespace DocumentProcessor.Api.Ocr
             // If a virtual environment path is configured, use the Python interpreter from that venv
             if (!string.IsNullOrWhiteSpace(_config.PythonVenvPath))
             {
-                var venvPath = _config.PythonVenvPath;
-                
-                // Make path absolute if it's relative
-                if (!Path.IsPathRooted(venvPath))
-                {
-                    venvPath = Path.Combine(Directory.GetCurrentDirectory(), venvPath);
-                }
-                
-                venvPath = Path.GetFullPath(venvPath);
+                // Get full path (handles both relative and absolute paths)
+                var venvPath = Path.GetFullPath(_config.PythonVenvPath);
                 
                 // Determine the Python executable path based on OS
                 // Windows: venv/Scripts/python.exe
