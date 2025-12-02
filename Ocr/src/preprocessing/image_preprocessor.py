@@ -10,7 +10,6 @@ Preprocessing pipeline order for best OCR accuracy:
 4. Remove background
 5. Denoise
 6. Convert to TIFF format
-7. Fix resolution (300 DPI) - last step to avoid large intermediate files
 
 Note: Resolution is set last to avoid creating large intermediate files.
 Tesseract has a maximum image size limit of 32767 pixels per dimension.
@@ -27,6 +26,7 @@ import shutil
 from pathlib import Path
 from typing import Optional, Tuple, TYPE_CHECKING
 import numpy as np
+from PIL import Image
 
 if TYPE_CHECKING:
     from ..cli.debug_output import DebugOutputManager
@@ -56,7 +56,6 @@ class ImagePreprocessor:
     4. Remove background - isolate text from background noise
     5. Denoise - reduce noise while preserving edges
     6. Convert to TIFF - optimal format for Tesseract OCR
-    7. Fix resolution - ensure optimal DPI for best OCR results (last step)
     
     Note: Resolution is set as the last step to avoid creating large intermediate files.
     The preprocessor automatically reduces DPI if the resampled image would exceed
@@ -332,9 +331,8 @@ class ImagePreprocessor:
     def preprocess(self, image_path: str, page_num: int = 1) -> Tuple[np.ndarray, int, int]:
         """
         Preprocess image for OCR using ImageMagick CLI.
-        
-        Pipeline order: Deskew -> Contrast -> Grayscale -> Remove Background -> 
-                       Denoise -> TIFF -> Resolution
+        Pipeline order: Deskew -> Contrast -> Grayscale -> Remove Background -> Denoise -> TIFF
+        Does NOT perform DPI resampling.
         
         Args:
             image_path: Path to image file
@@ -363,7 +361,6 @@ class ImagePreprocessor:
                 current_file = next_file
                 self._save_debug_image(next_file, "deskewed", page_num)
                 step += 1
-            
             
             # Step 3: Grayscale
             logger.info(f"Step {step}: Converting to grayscale...")
@@ -433,41 +430,11 @@ class ImagePreprocessor:
             self._save_debug_image(next_file, "convert", page_num)
             step += 1
             
-            # Step 7: Fix resolution (with size limit checking) - only if target_dpi is set
-            if self.target_dpi is not None:
-                logger.info(f"Step {step}: Checking resolution...")
-                width, height, x_dpi, y_dpi = self._get_image_info(current_file)
-                current_dpi = min(x_dpi, y_dpi) if x_dpi > 0 and y_dpi > 0 else 72.0
-                
-                logger.info(f"Current image: {width}x{height} at {current_dpi:.0f} DPI")
-                
-                # Find a safe DPI that won't exceed Tesseract/Pillow limits
-                safe_dpi = self._find_safe_dpi(width, height, current_dpi)
-                
-                if safe_dpi is not None:
-                    logger.info(f"Step {step}: Fixing resolution to {safe_dpi} DPI...")
-                    next_file = os.path.join(temp_dir, f"step{step}_resolution.tiff")
-                    if not self._run_imagemagick_cmd([
-                        current_file, "-resample", str(safe_dpi), 
-                        "-units", "PixelsPerInch", next_file
-                    ]):
-                        raise RuntimeError(f"Failed to fix resolution to {safe_dpi} DPI")
-                    current_file = next_file
-                    self._save_debug_image(next_file, "resolution_fixed", page_num)
-                else:
-                    logger.warning(
-                        f"Skipping resolution adjustment - image at {current_dpi:.0f} DPI "
-                        f"would exceed size limits at any higher DPI"
-                    )
-            else:
-                logger.info("Skipping DPI resampling (preprocess-only mode)")
-            
             # Load the final preprocessed image using ImageMagick to convert to RGB PNG
             # This avoids using Pillow for loading the TIFF
             logger.info("Finished preprocessing image, prepaering for OCR")
             # Now load the PNG as numpy array - we need Pillow here for numpy conversion
             # This is the minimal Pillow usage required for OCR engine compatibility
-            from PIL import Image
             pil_img = Image.open(current_file)
             result = np.array(pil_img)
             
@@ -522,3 +489,67 @@ class ImagePreprocessor:
             logger.debug(f"Saved debug image: {debug_path}")
         except Exception as e:
             logger.warning(f"Failed to save debug image for {step_name}: {e}")
+    
+    def resampleToDpi(
+        image_path: str, target_dpi: int = 300
+    ) -> tuple:
+        """
+        Resample a TIFF image to the target DPI, with safety checks.
+        Returns (image as numpy array, width, height).
+        """
+        import subprocess
+        import tempfile
+        import os
+        import shutil
+        logger = logging.getLogger(__name__)
+        temp_dir = tempfile.mkdtemp(prefix="ocr_resample_")
+        try:
+            # Get image info
+            def get_image_info(path):
+                try:
+                    result = subprocess.run([
+                        "magick", "identify", "-format", "%w %h %x %y", path
+                    ], capture_output=True, text=True, timeout=30)
+                    if result.returncode == 0:
+                        parts = result.stdout.strip().split()
+                        if len(parts) >= 4:
+                            width = int(parts[0])
+                            height = int(parts[1])
+                            x_dpi = float(parts[2].split()[0]) if parts[2] else 72.0
+                            y_dpi = float(parts[3].split()[0]) if parts[3] else 72.0
+                            return width, height, x_dpi, y_dpi
+                except Exception as e:
+                    logger.warning(f"Failed to get image info: {e}")
+                return 0, 0, 72.0, 72.0
+
+            width, height, x_dpi, y_dpi = get_image_info(image_path)
+            current_dpi = min(x_dpi, y_dpi) if x_dpi > 0 and y_dpi > 0 else 72.0
+            # Calculate new dimensions
+            scale_factor = target_dpi / current_dpi if current_dpi > 0 else 1.0
+            new_width = int(width * scale_factor)
+            new_height = int(height * scale_factor)
+            # Safety checks
+            TESSERACT_MAX_DIMENSION = 32767
+            PILLOW_MAX_PIXELS = 178956970
+            if new_width > TESSERACT_MAX_DIMENSION or new_height > TESSERACT_MAX_DIMENSION or (new_width * new_height) > PILLOW_MAX_PIXELS:
+                logger.warning(f"Resampled image would exceed size limits. Skipping DPI adjustment.")
+                resampled_path = image_path
+            else:
+                resampled_path = os.path.join(temp_dir, "resampled.tiff")
+                result = subprocess.run([
+                    "magick", image_path, "-resample", str(target_dpi), "-units", "PixelsPerInch", resampled_path
+                ], capture_output=True, text=True, timeout=60)
+                if result.returncode != 0:
+                    logger.error(f"ImageMagick resample failed: {result.stderr}")
+                    resampled_path = image_path
+            # Load image as numpy array
+            pil_img = Image.open(resampled_path)
+            arr = np.array(pil_img)
+            final_height, final_width = arr.shape[:2]
+            if len(arr.shape) == 2:
+                arr = np.stack([arr, arr, arr], axis=-1)
+            elif arr.shape[2] == 4:
+                arr = arr[:, :, :3]
+            return arr, final_width, final_height
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
