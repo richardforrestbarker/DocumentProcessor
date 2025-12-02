@@ -5,7 +5,7 @@ Provides command-line interface for processing receipt images.
 """
 
 from .args import create_argument_parser, parse_args
-from .commands import process_command, version_command
+from .commands import version_command, preprocess_command, ocr_command, inference_command
 from .utils import check_dependencies, get_device
 
 __all__ = [

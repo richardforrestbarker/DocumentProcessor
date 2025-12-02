@@ -322,7 +322,14 @@ def ocr_command(
     actual_device = get_device(device)
     logger.info(f"Using device: {actual_device}")
     from ..ocr.ocr_engine import create_ocr_engine
-    from ..preprocessing.image_preprocessor import resampleToDpi
+    from ..preprocessing.image_preprocessor import ImagePreprocessor
+
+    # Preprocessor without DPI resampling
+    preprocessor = ImagePreprocessor(
+        target_dpi=target_dpi,
+    )
+
+
     effective_job_id = job_id or f"ocr-{hash(input_image) % 100000:05d}"
     result = {
         "job_id": effective_job_id,
@@ -334,7 +341,7 @@ def ocr_command(
     }
     try:
         # Only perform DPI resampling on the preprocessed TIFF image
-        processed_image, width, height = resampleToDpi(input_image, target_dpi)
+        processed_image, width, height = preprocessor.resampleToDpi(input_image, target_dpi)
         ocr = create_ocr_engine(ocr_engine, use_gpu=(actual_device == "cuda"))
         words = ocr.detect_and_recognize(processed_image)
         logger.info(f"OCR detected {len(words)} text regions")

@@ -18,6 +18,9 @@ torchvision>=0.15.0
 transformers>=4.30.0
 datasets>=2.14.0
 
+# Donut Models
+sentencepiece
+
 # Model optimization (for IDEFICS2 4-bit quantization)
 accelerate>=0.20.0
 bitsandbytes>=0.41.0; sys_platform == 'linux'  # 4-bit quantization (Linux only)

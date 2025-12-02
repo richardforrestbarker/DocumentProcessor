@@ -490,8 +490,7 @@ class ImagePreprocessor:
         except Exception as e:
             logger.warning(f"Failed to save debug image for {step_name}: {e}")
     
-    def resampleToDpi(
-        image_path: str, target_dpi: int = 300
+    def resampleToDpi(self, image_path: str, target_dpi: int = 300
     ) -> tuple:
         """
         Resample a TIFF image to the target DPI, with safety checks.
@@ -504,25 +503,7 @@ class ImagePreprocessor:
         logger = logging.getLogger(__name__)
         temp_dir = tempfile.mkdtemp(prefix="ocr_resample_")
         try:
-            # Get image info
-            def get_image_info(path):
-                try:
-                    result = subprocess.run([
-                        "magick", "identify", "-format", "%w %h %x %y", path
-                    ], capture_output=True, text=True, timeout=30)
-                    if result.returncode == 0:
-                        parts = result.stdout.strip().split()
-                        if len(parts) >= 4:
-                            width = int(parts[0])
-                            height = int(parts[1])
-                            x_dpi = float(parts[2].split()[0]) if parts[2] else 72.0
-                            y_dpi = float(parts[3].split()[0]) if parts[3] else 72.0
-                            return width, height, x_dpi, y_dpi
-                except Exception as e:
-                    logger.warning(f"Failed to get image info: {e}")
-                return 0, 0, 72.0, 72.0
-
-            width, height, x_dpi, y_dpi = get_image_info(image_path)
+            width, height, x_dpi, y_dpi = self._get_image_info(image_path)
             current_dpi = min(x_dpi, y_dpi) if x_dpi > 0 and y_dpi > 0 else 72.0
             # Calculate new dimensions
             scale_factor = target_dpi / current_dpi if current_dpi > 0 else 1.0

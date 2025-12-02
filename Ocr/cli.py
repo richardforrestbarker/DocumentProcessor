@@ -47,7 +47,6 @@ def main():
     # Import from modular components
     from src.cli.args import parse_args
     from src.cli.commands import (
-        process_command, 
         version_command, 
         preprocess_command,
         ocr_command,
@@ -56,38 +55,7 @@ def main():
     
     args, parser = parse_args()
     
-    if args.command == "process":
-        try:
-            result = process_command(
-                image_paths=args.images,
-                output_path=args.output,
-                model_name=args.model,
-                model_type=args.model_type,
-                ocr_engine=args.ocr_engine,
-                device=args.device,
-                denoise=args.denoise,
-                deskew=args.deskew,
-                job_id=args.job_id,
-                skip_model=args.skip_model,
-                verbose=args.verbose,
-                debug=args.debug,
-                debug_output_dir=args.debug_output_dir,
-                fuzz_percent=args.fuzz_percent,
-                deskew_threshold=args.deskew_threshold,
-                contrast_type=args.contrast_type,
-                contrast_strength=args.contrast_strength,
-                contrast_midpoint=args.contrast_midpoint
-            )
-            
-            if not args.output:
-                print(json.dumps(result, indent=2))
-            
-            sys.exit(0)
-        except Exception as e:
-            print(f"Error processing receipt: {e}", file=sys.stderr)
-            sys.exit(1)
-    
-    elif args.command == "preprocess":
+    if args.command == "preprocess":
         try:
             result = preprocess_command(
                 input_image=args.input_image,
