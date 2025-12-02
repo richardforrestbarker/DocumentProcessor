@@ -72,5 +72,12 @@ namespace DocumentProcessor.Data
         /// </summary>
         [JsonPropertyName("min_confidence_threshold")]
         public double MinConfidenceThreshold { get; set; } = 0.5;
+
+        /// <summary>
+        /// Path to Python virtual environment (e.g., "./Ocr/venv")
+        /// The Python interpreter will be located at bin/python (Linux/Mac) or Scripts/python.exe (Windows)
+        /// </summary>
+        [JsonPropertyName("python_venv_path")]
+        public string? PythonVenvPath { get; set; } = "./Ocr/venv";
     }
 }

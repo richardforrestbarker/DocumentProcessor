@@ -283,4 +283,45 @@ namespace DocumentProcessor.Tests
             public void Log<TState>(LogLevel level, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter) { }
         }
     }
+
+    public class OcrConfigurationTests
+    {
+        [Fact]
+        public void OcrConfiguration_DefaultValues_AreSetCorrectly()
+        {
+            var config = new DocumentProcessor.Data.OcrConfiguration();
+            Assert.Equal("microsoft/layoutlmv3-base", config.ModelNameOrPath);
+            Assert.Equal("auto", config.Device);
+            Assert.Equal("paddle", config.OcrEngine);
+            Assert.Equal("word", config.DetectionMode);
+            Assert.Equal(1000, config.BoxNormalizationScale);
+            Assert.Equal("./Ocr/cli.py", config.PythonServicePath);
+            Assert.Equal("./Ocr/venv", config.PythonVenvPath);
+            Assert.Equal("./temp/documents", config.TempStoragePath);
+            Assert.Equal(10 * 1024 * 1024, config.MaxFileSize);
+            Assert.Equal(24, config.TempFileTtlHours);
+            Assert.True(config.EnableGpu);
+            Assert.Equal(0.5, config.MinConfidenceThreshold);
+        }
+
+        [Fact]
+        public void OcrConfiguration_PythonVenvPath_CanBeSet()
+        {
+            var config = new DocumentProcessor.Data.OcrConfiguration
+            {
+                PythonVenvPath = "/custom/path/to/venv"
+            };
+            Assert.Equal("/custom/path/to/venv", config.PythonVenvPath);
+        }
+
+        [Fact]
+        public void OcrConfiguration_PythonVenvPath_CanBeNull()
+        {
+            var config = new DocumentProcessor.Data.OcrConfiguration
+            {
+                PythonVenvPath = null
+            };
+            Assert.Null(config.PythonVenvPath);
+        }
+    }
 }
