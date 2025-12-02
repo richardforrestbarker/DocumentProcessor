@@ -1,5 +1,5 @@
-using Data;
-using Data.Ocr;
+using DocumentProcessor.Data;
+using DocumentProcessor.Data.Ocr;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 

@@ -8,6 +8,7 @@ using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Reflection;
+using DocumentProcessor.Wasm.Components;
 
 namespace DocumentProcessor.Tests
 {

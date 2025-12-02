@@ -13,6 +13,7 @@ using System.IO;
 using System.Threading;
 using Clients;
 using System.Net.Http;
+using DocumentProcessor.Wasm.Components;
 
 namespace DocumentProcessor.Tests
 {
