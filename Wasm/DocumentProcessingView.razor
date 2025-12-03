@@ -680,6 +680,11 @@
 
         isLoading = true;
         errorMessage = null;
+        // Use OCR's JobId for inference to maintain tracking consistency
+        if (string.IsNullOrEmpty(currentJobId))
+        {
+            currentJobId = Guid.NewGuid().ToString();
+        }
         await InvokeAsync(StateHasChanged);
 
         try
@@ -689,7 +694,7 @@
             {
                 OcrResult = ocrResult,
                 ImageBase64 = preprocessedImageBase64,
-                JobId = currentJobId ?? Guid.NewGuid().ToString(),
+                JobId = currentJobId,
                 Model = inferenceSettings.Model,
                 ModelType = inferenceSettings.ModelType,
                 Device = inferenceSettings.Device
