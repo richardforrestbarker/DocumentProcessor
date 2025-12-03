@@ -29,7 +29,7 @@
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>@(currentPhase == ProcessingPhase.Preprocessing ? "Source Image" : "Preprocessing Result")</span>
-                    @if (currentPhase == ProcessingPhase.Ocr && !string.IsNullOrEmpty(preprocessedImageBase64))
+                    @if ((currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) && !string.IsNullOrEmpty(preprocessedImageBase64))
                     {
                         <span class="badge bg-success">Accepted</span>
                     }
@@ -37,9 +37,9 @@
                 <div class="card-body text-center">
                     @if (!string.IsNullOrEmpty(sourceImageBase64))
                     {
-                        <img src="data:image/png;base64,@(currentPhase == ProcessingPhase.Ocr && !string.IsNullOrEmpty(preprocessedImageBase64) ? preprocessedImageBase64 : sourceImageBase64)"
+                        <img src="data:image/png;base64,@((currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) && !string.IsNullOrEmpty(preprocessedImageBase64) ? preprocessedImageBase64 : sourceImageBase64)"
                              class="img-fluid"
-                             alt="@(currentPhase == ProcessingPhase.Ocr ? "Preprocessing Result" : "Source Image")"
+                             alt="@((currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) ? "Preprocessing Result" : "Source Image")"
                              style="max-height: 500px;" />
                     }
                     else
@@ -66,6 +66,9 @@
                                 break;
                             case ProcessingPhase.Ocr:
                                 <text>OCR Result</text>
+                                break;
+                            case ProcessingPhase.Inference:
+                                <text>Inference Result</text>
                                 break;
                         }
                     </span>
@@ -125,51 +128,51 @@
                             {
                                 <h6>Words detected: @ocrResult.Words.Count</h6>
                             }
-
-                            @if (inferenceResult != null)
-                            {
-                                <hr />
-                                <h5>Extracted Fields:</h5>
-                                <table class="table table-sm">
-                                    <tbody>
-                                        @if (inferenceResult.VendorName != null)
-                                        {
-                                            <tr>
-                                                <th>Vendor</th>
-                                                <td>@inferenceResult.VendorName.Value</td>
-                                            </tr>
-                                        }
-                                        @if (inferenceResult.Date != null)
-                                        {
-                                            <tr>
-                                                <th>Date</th>
-                                                <td>@inferenceResult.Date.Value</td>
-                                            </tr>
-                                        }
-                                        @if (inferenceResult.TotalAmount != null)
-                                        {
-                                            <tr>
-                                                <th>Total</th>
-                                                <td>@inferenceResult.TotalAmount.Value</td>
-                                            </tr>
-                                        }
-                                        @if (inferenceResult.Subtotal != null)
-                                        {
-                                            <tr>
-                                                <th>Subtotal</th>
-                                                <td>@inferenceResult.Subtotal.Value</td>
-                                            </tr>
-                                        }
-                                        @if (inferenceResult.TaxAmount != null)
-                                        {
-                                            <tr>
-                                                <th>Tax</th>
-                                                <td>@inferenceResult.TaxAmount.Value</td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            }
+                        </div>
+                    }
+                    else if (currentPhase == ProcessingPhase.Inference && inferenceResult != null)
+                    {
+                        <div class="inference-result text-start" style="max-height: 500px; overflow-y: auto;">
+                            <h5>Extracted Fields:</h5>
+                            <table class="table table-sm">
+                                <tbody>
+                                    @if (inferenceResult.VendorName != null)
+                                    {
+                                        <tr>
+                                            <th>Vendor</th>
+                                            <td>@inferenceResult.VendorName.Value</td>
+                                        </tr>
+                                    }
+                                    @if (inferenceResult.Date != null)
+                                    {
+                                        <tr>
+                                            <th>Date</th>
+                                            <td>@inferenceResult.Date.Value</td>
+                                        </tr>
+                                    }
+                                    @if (inferenceResult.TotalAmount != null)
+                                    {
+                                        <tr>
+                                            <th>Total</th>
+                                            <td>@inferenceResult.TotalAmount.Value</td>
+                                        </tr>
+                                    }
+                                    @if (inferenceResult.Subtotal != null)
+                                    {
+                                        <tr>
+                                            <th>Subtotal</th>
+                                            <td>@inferenceResult.Subtotal.Value</td>
+                                        </tr>
+                                    }
+                                    @if (inferenceResult.TaxAmount != null)
+                                    {
+                                        <tr>
+                                            <th>Tax</th>
+                                            <td>@inferenceResult.TaxAmount.Value</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
                         </div>
                     }
                     else
@@ -258,9 +261,90 @@
         </div>
     }
 
+    <!-- OCR Settings Panel -->
+    @if (currentPhase == ProcessingPhase.Ocr)
+    {
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">OCR Settings</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="ocrEngine" class="form-label">OCR Engine</label>
+                            <InputSelect class="form-select" id="ocrEngine" @bind-Value="ocrSettings.OcrEngine">
+                                <option value="tesseract">Tesseract</option>
+                                <option value="paddle">PaddleOCR</option>
+                            </InputSelect>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="targetDpi" class="form-label">Target DPI: @ocrSettings.TargetDpi</label>
+                            <InputNumber type="range" class="form-range" id="targetDpi"
+                                   min="72" max="600" step="50"
+                                   @bind-Value="ocrSettings.TargetDpi" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="ocrDevice" class="form-label">Device</label>
+                            <InputSelect class="form-select" id="ocrDevice" @bind-Value="ocrSettings.Device">
+                                <option value="auto">Auto</option>
+                                <option value="cpu">CPU</option>
+                                <option value="cuda">CUDA</option>
+                            </InputSelect>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Inference Settings Panel -->
+    @if (currentPhase == ProcessingPhase.Inference)
+    {
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Inference Settings</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="model" class="form-label">Model</label>
+                            <InputText class="form-control" id="model" @bind-Value="inferenceSettings.Model" />
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="modelType" class="form-label">Model Type</label>
+                            <InputSelect class="form-select" id="modelType" @bind-Value="inferenceSettings.ModelType">
+                                <option value="donut">Donut</option>
+                                <option value="idefics2">Idefics2</option>
+                                <option value="layoutlmv3">LayoutLMv3</option>
+                            </InputSelect>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="inferenceDevice" class="form-label">Device</label>
+                            <InputSelect class="form-select" id="inferenceDevice" @bind-Value="inferenceSettings.Device">
+                                <option value="auto">Auto</option>
+                                <option value="cpu">CPU</option>
+                                <option value="cuda">CUDA</option>
+                            </InputSelect>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
     <!-- Action Buttons -->
     <div class="d-flex justify-content-between mt-4">
-        @if (currentPhase == ProcessingPhase.Ocr)
+        @if (currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference)
         {
             <button class="btn btn-secondary" onclick="@GoBack" disabled="@isLoading">
                 <i class="bi bi-arrow-left me-2"></i>Go Back
@@ -273,18 +357,38 @@
             </button>
         }
 
-        @if (currentPhase == ProcessingPhase.Preprocessing && !string.IsNullOrEmpty(preprocessedImageBase64))
-        {
-            <button class="btn btn-primary" onclick="@AcceptPreprocessing" disabled="@isLoading">
-                Done - Continue to OCR<i class="bi bi-arrow-right ms-2"></i>
-            </button>
-        }
-        else if (currentPhase == ProcessingPhase.Ocr && inferenceResult != null)
-        {
-            <button class="btn btn-success" onclick="@AcceptResult">
-                <i class="bi bi-check-lg me-2"></i>Accept Result
-            </button>
-        }
+        <div>
+            @if (currentPhase == ProcessingPhase.Preprocessing && !string.IsNullOrEmpty(preprocessedImageBase64))
+            {
+                <button class="btn btn-primary" onclick="@AcceptPreprocessing" disabled="@isLoading">
+                    Done - Continue to OCR<i class="bi bi-arrow-right ms-2"></i>
+                </button>
+            }
+            else if (currentPhase == ProcessingPhase.Ocr)
+            {
+                @if (ocrResult != null)
+                {
+                    <button class="btn btn-secondary me-2" onclick="@RunOcr" disabled="@isLoading">
+                        <i class="bi bi-arrow-repeat me-2"></i>Re-run OCR
+                    </button>
+                    <button class="btn btn-primary" onclick="@AcceptOcr" disabled="@isLoading">
+                        Accept - Continue to Inference<i class="bi bi-arrow-right ms-2"></i>
+                    </button>
+                }
+            }
+            else if (currentPhase == ProcessingPhase.Inference)
+            {
+                @if (inferenceResult != null)
+                {
+                    <button class="btn btn-secondary me-2" onclick="@RunInference" disabled="@isLoading">
+                        <i class="bi bi-arrow-repeat me-2"></i>Re-run Inference
+                    </button>
+                    <button class="btn btn-success" onclick="@AcceptResult">
+                        <i class="bi bi-check-lg me-2"></i>Accept Result
+                    </button>
+                }
+            }
+        </div>
     </div>
 </div>
 
@@ -304,7 +408,8 @@
     private enum ProcessingPhase
     {
         Preprocessing,
-        Ocr
+        Ocr,
+        Inference
     }
 
     private ProcessingPhase currentPhase = ProcessingPhase.Preprocessing;
@@ -318,6 +423,8 @@
     private string? currentJobId;
 
     private PreprocessingSettings settings = new();
+    private OcrSettings ocrSettings = new();
+    private InferenceSettings inferenceSettings = new();
     private OcrResult? ocrResult;
     private InferenceResult? inferenceResult;
 
@@ -512,10 +619,10 @@
     private async Task AcceptPreprocessing()
     {
         currentPhase = ProcessingPhase.Ocr;
-        await RunOcrAndInference();
+        await RunOcr();
     }
 
-    private async Task RunOcrAndInference()
+    private async Task RunOcr()
     {
         if (string.IsNullOrEmpty(preprocessedImageBase64))
             return;
@@ -532,12 +639,12 @@
             {
                 ImageBase64 = preprocessedImageBase64,
                 JobId = currentJobId,
-                OcrEngine = "tesseract",
-                TargetDpi = 300,
-                Device = "auto"
+                OcrEngine = ocrSettings.OcrEngine,
+                TargetDpi = ocrSettings.TargetDpi,
+                Device = ocrSettings.Device
             };
 
-            var ocrResult = await DocumentProcessingClient.RunOcrAsync(ocrRequest);
+            ocrResult = await DocumentProcessingClient.RunOcrAsync(ocrRequest);
 
             if (ocrResult == null || ocrResult.Status != "done")
             {
@@ -547,19 +654,48 @@
 
             Logger.LogInformation("OCR complete for job {JobId}, detected {WordCount} words",
                 currentJobId, ocrResult.Words?.Count ?? 0);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error during OCR: {ex.Message}";
+            Logger.LogError(ex, "Error during OCR");
+        }
+        finally
+        {
+            isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+    
+    private async Task AcceptOcr()
+    {
+        currentPhase = ProcessingPhase.Inference;
+        await RunInference();
+    }
+    
+    private async Task RunInference()
+    {
+        if (ocrResult == null || string.IsNullOrEmpty(preprocessedImageBase64))
+            return;
 
+        isLoading = true;
+        errorMessage = null;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
             // Run Inference
             var inferenceRequest = new InferenceRequest
             {
                 OcrResult = ocrResult,
                 ImageBase64 = preprocessedImageBase64,
-                JobId = currentJobId,
-                Model = "naver-clova-ix/donut-base-finetuned-cord-v2",
-                ModelType = "donut",
-                Device = "auto"
+                JobId = currentJobId ?? Guid.NewGuid().ToString(),
+                Model = inferenceSettings.Model,
+                ModelType = inferenceSettings.ModelType,
+                Device = inferenceSettings.Device
             };
 
-            var inferenceResult = await DocumentProcessingClient.RunInferenceAsync(inferenceRequest);
+            inferenceResult = await DocumentProcessingClient.RunInferenceAsync(inferenceRequest);
 
             if (inferenceResult == null || inferenceResult.Status != "done")
             {
@@ -571,8 +707,8 @@
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error during OCR/inference: {ex.Message}";
-            Logger.LogError(ex, "Error during OCR/inference");
+            errorMessage = $"Error during inference: {ex.Message}";
+            Logger.LogError(ex, "Error during inference");
         }
         finally
         {
@@ -583,19 +719,30 @@
 
     private void GoBack()
     {
-        currentPhase = ProcessingPhase.Preprocessing;
-        ocrResult = null;
-        inferenceResult = null;
-
-        // Only trigger preprocessing if we don't have a result yet
-        if (string.IsNullOrEmpty(preprocessedImageBase64))
+        if (currentPhase == ProcessingPhase.Inference)
         {
-            OnSettingsChanged();
-        }
-        else
-        {
-            // Just switch view without re-running preprocessing
+            // Go back from inference to OCR
+            currentPhase = ProcessingPhase.Ocr;
+            inferenceResult = null;
             StateHasChanged();
+        }
+        else if (currentPhase == ProcessingPhase.Ocr)
+        {
+            // Go back from OCR to preprocessing
+            currentPhase = ProcessingPhase.Preprocessing;
+            ocrResult = null;
+            inferenceResult = null;
+
+            // Only trigger preprocessing if we don't have a result yet
+            if (string.IsNullOrEmpty(preprocessedImageBase64))
+            {
+                OnSettingsChanged();
+            }
+            else
+            {
+                // Just switch view without re-running preprocessing
+                StateHasChanged();
+            }
         }
     }
 
@@ -609,6 +756,8 @@
         errorMessage = null;
         currentPhase = ProcessingPhase.Preprocessing;
         settings = new PreprocessingSettings();
+        ocrSettings = new OcrSettings();
+        inferenceSettings = new InferenceSettings();
         StateHasChanged();
     }
 
@@ -626,7 +775,7 @@
         progressTimer?.Dispose();
     }
 
-    // Settings class
+    // Settings classes
     private class PreprocessingSettings
     {
         public bool Denoise { get; set; } = false;
@@ -636,5 +785,19 @@
         public string ContrastType { get; set; } = "sigmoidal";
         public double ContrastStrength { get; set; } = 3.0;
         public int ContrastMidpoint { get; set; } = 120;
+    }
+    
+    private class OcrSettings
+    {
+        public string OcrEngine { get; set; } = "tesseract";
+        public int TargetDpi { get; set; } = 300;
+        public string Device { get; set; } = "auto";
+    }
+    
+    private class InferenceSettings
+    {
+        public string Model { get; set; } = "naver-clova-ix/donut-base-finetuned-cord-v2";
+        public string ModelType { get; set; } = "donut";
+        public string Device { get; set; } = "auto";
     }
 }
