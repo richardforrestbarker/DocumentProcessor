@@ -63,6 +63,7 @@ def main():
                 output_format=args.output_format,
                 job_id=args.job_id,
                 verbose=args.verbose,
+                log_level=args.log_level,
                 denoise=args.denoise,
                 deskew=args.deskew,
                 fuzz_percent=args.fuzz_percent,
@@ -72,7 +73,9 @@ def main():
                 contrast_midpoint=args.contrast_midpoint
             )
             
-            print(json.dumps(result, indent=2))
+            if not args.output:
+                print(json.dumps(result, indent=2))
+            
             sys.exit(0 if result.get("status") == "done" else 1)
         except Exception as e:
             print(f"Error during preprocessing: {e}", file=sys.stderr)
@@ -85,6 +88,7 @@ def main():
                 output_path=args.output,
                 job_id=args.job_id,
                 verbose=args.verbose,
+                log_level=args.log_level,
                 ocr_engine=args.ocr_engine,
                 target_dpi=args.target_dpi,
                 device=args.device
@@ -106,6 +110,7 @@ def main():
                 output_path=args.output,
                 job_id=args.job_id,
                 verbose=args.verbose,
+                log_level=args.log_level,
                 model=args.model,
                 model_type=args.model_type,
                 device=args.device

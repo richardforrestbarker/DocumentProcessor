@@ -5,7 +5,7 @@ Common utilities for the Receipt OCR CLI.
 """
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +53,18 @@ def get_device(device_str: str) -> str:
     return device_str
 
 
-def setup_logging(verbose: bool = False) -> None:
+def setup_logging(verbose: bool = False, log_level: Optional[str] = None) -> None:
     """
     Configure logging for the CLI.
     
     Args:
         verbose: Whether to enable verbose (DEBUG) logging
+        log_level: Explicit log level string (DEBUG, INFO, WARNING, ERROR, CRITICAL)
     """
-    level = logging.DEBUG if verbose else logging.INFO
+    if log_level:
+        level = getattr(logging, log_level.upper(), logging.INFO)
+    else:
+        level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
         level=level,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'

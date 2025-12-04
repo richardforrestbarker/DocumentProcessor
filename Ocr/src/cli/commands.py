@@ -180,7 +180,7 @@ def extract_tax_field(words: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
                         "confidence": words[j]['confidence'],
                         "box": {
                             "x0": words[j]['box'][0],
-                            "y0": words[j]['box'][1],
+                            "y0": w['box'][1],
                             "x1": words[j]['box'][2],
                             "y1": words[j]['box'][3]
                         }
@@ -215,6 +215,7 @@ def preprocess_command(
     output_format: str = "base64",
     job_id: Optional[str] = None,
     verbose: bool = False,
+    log_level: Optional[str] = None,
     denoise: bool = False,
     deskew: bool = False,
     fuzz_percent: int = 30,
@@ -232,16 +233,30 @@ def preprocess_command(
     import os
     from io import BytesIO
 
-    setup_logging(verbose)
+    setup_logging(verbose, log_level)
     check_dependencies()
 
-    logger.info(f"Preprocessing image: {input_image}")
+    logger.info(json.dumps({
+        "event": "preprocess_start",
+        "input_image": input_image,
+        "job_id": job_id,
+        "output_path": output_path,
+        "output_format": output_format,
+        "settings": {
+            "denoise": denoise,
+            "deskew": deskew,
+            "fuzz_percent": fuzz_percent,
+            "deskew_threshold": deskew_threshold,
+            "contrast_type": contrast_type,
+            "contrast_strength": contrast_strength,
+            "contrast_midpoint": contrast_midpoint
+        }
+    }))
 
     from ..preprocessing.image_preprocessor import ImagePreprocessor
 
-    # Preprocessor without DPI resampling
     preprocessor = ImagePreprocessor(
-        target_dpi=None,  # Ensure DPI resampling is skipped
+        target_dpi=None,
         denoise=denoise,
         deskew=deskew,
         enhance_contrast=(contrast_type != "none"),
@@ -270,36 +285,56 @@ def preprocess_command(
     }
 
     try:
-        # Run preprocessing (ends at TIFF, no DPI resampling)
         processed_image, width, height = preprocessor.preprocess(input_image, page_num=1)
         result["width"] = width
         result["height"] = height
+
         from PIL import Image
         import numpy as np
         pil_image = Image.fromarray(processed_image.astype(np.uint8))
         if output_format == "base64":
+            from io import BytesIO
             buffer = BytesIO()
             pil_image.save(buffer, format="PNG")
             buffer.seek(0)
             base64_data = base64.b64encode(buffer.getvalue()).decode('utf-8')
             result["image_base64"] = base64_data
             result["image_format"] = "png"
-            logger.info(f"Preprocessing complete. Base64 encoded image generated.")
         elif output_format == "file":
             if output_path:
                 pil_image.save(output_path)
                 result["output_path"] = output_path
-                logger.info(f"Preprocessing complete. Image saved to: {output_path}")
             else:
                 fd, temp_path = tempfile.mkstemp(suffix=".png")
                 os.close(fd)
                 pil_image.save(temp_path)
                 result["output_path"] = temp_path
-                logger.info(f"Preprocessing complete. Image saved to: {temp_path}")
+
+        logger.info(json.dumps({
+            "event": "preprocess_complete",
+            "job_id": effective_job_id,
+            "width": width,
+            "height": height,
+            "output_format": output_format,
+            "output_path": result.get("output_path")
+        }))
     except Exception as e:
-        logger.error(f"Error during preprocessing: {e}")
+        logger.error(json.dumps({
+            "event": "preprocess_error",
+            "job_id": effective_job_id,
+            "error": str(e)
+        }))
         result["status"] = "failed"
         result["error"] = str(e)
+
+    # Always honor output_path for JSON result if provided
+    if output_path and output_format == "base64":
+        out = Path(output_path)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, 'w') as f:
+            json.dump(result, f, indent=2)
+        logger.info(f"Results written to {output_path}")
+
     return result
 
 
@@ -308,6 +343,7 @@ def ocr_command(
     output_path: Optional[str] = None,
     job_id: Optional[str] = None,
     verbose: bool = False,
+    log_level: Optional[str] = None,
     ocr_engine: str = "paddle",
     target_dpi: int = 300,
     device: str = "auto"
@@ -315,20 +351,23 @@ def ocr_command(
     """
     Run OCR on a preprocessed image (now only calls DPI resampling, not full preprocessing).
     """
-    setup_logging(verbose)
+    setup_logging(verbose, log_level)
     check_dependencies()
-    logger.info(f"Running OCR on image: {input_image}")
-    logger.info(f"OCR Engine: {ocr_engine}")
+
+    logger.info(json.dumps({
+        "event": "ocr_start",
+        "input_image": input_image,
+        "job_id": job_id,
+        "ocr_engine": ocr_engine,
+        "target_dpi": target_dpi,
+        "device": device
+    }))
+
     actual_device = get_device(device)
-    logger.info(f"Using device: {actual_device}")
     from ..ocr.ocr_engine import create_ocr_engine
     from ..preprocessing.image_preprocessor import ImagePreprocessor
 
-    # Preprocessor without DPI resampling
-    preprocessor = ImagePreprocessor(
-        target_dpi=target_dpi,
-    )
-
+    preprocessor = ImagePreprocessor(target_dpi=target_dpi)
 
     effective_job_id = job_id or f"ocr-{hash(input_image) % 100000:05d}"
     result = {
@@ -340,11 +379,9 @@ def ocr_command(
         "raw_ocr_text": ""
     }
     try:
-        # Only perform DPI resampling on the preprocessed TIFF image
         processed_image, width, height = preprocessor.resampleToDpi(input_image, target_dpi)
         ocr = create_ocr_engine(ocr_engine, use_gpu=(actual_device == "cuda"))
         words = ocr.detect_and_recognize(processed_image)
-        logger.info(f"OCR detected {len(words)} text regions")
         normalized_words = normalize_boxes(words, width, height)
         raw_text = ' '.join(w['text'] for w in words)
         result["words"] = [
@@ -363,8 +400,20 @@ def ocr_command(
         result["raw_ocr_text"] = raw_text
         result["image_width"] = width
         result["image_height"] = height
+
+        logger.info(json.dumps({
+            "event": "ocr_complete",
+            "job_id": effective_job_id,
+            "image_width": width,
+            "image_height": height,
+            "word_count": len(result["words"])
+        }))
     except Exception as e:
-        logger.error(f"Error during OCR: {e}")
+        logger.error(json.dumps({
+            "event": "ocr_error",
+            "job_id": effective_job_id,
+            "error": str(e)
+        }))
         result["status"] = "failed"
         result["error"] = str(e)
     if output_path:
@@ -382,37 +431,30 @@ def inference_command(
     output_path: Optional[str] = None,
     job_id: Optional[str] = None,
     verbose: bool = False,
+    log_level: Optional[str] = None,
     model: str = "naver-clova-ix/donut-base-finetuned-cord-v2",
     model_type: str = "donut",
     device: str = "auto"
 ) -> dict:
     """
     Run model inference on OCR results to extract structured fields.
-    
-    Args:
-        ocr_result_path: Path to OCR result JSON file from 'ocr' command
-        input_image: Path to original or preprocessed image for visual features
-        output_path: Path to write JSON output
-        job_id: Optional job identifier
-        verbose: Enable verbose logging
-        model: Model name or path
-        model_type: Model type ('donut', 'idefics2', 'layoutlmv3')
-        device: Device for inference
-        
-    Returns:
-        Dictionary containing extracted receipt fields
     """
-    setup_logging(verbose)
+    setup_logging(verbose, log_level)
     check_dependencies()
     
-    logger.info(f"Running inference with model: {model_type} ({model})")
+    logger.info(json.dumps({
+        "event": "inference_start",
+        "input_image": input_image,
+        "job_id": job_id,
+        "ocr_result_path": ocr_result_path,
+        "model_type": model_type,
+        "model": model,
+        "device": device
+    }))
     
     actual_device = get_device(device)
-    logger.info(f"Using device: {actual_device}")
-    
     from ..postprocessing.field_extractor import FieldExtractor
     
-    # Load OCR results
     with open(ocr_result_path, 'r') as f:
         ocr_result = json.load(f)
     
@@ -435,13 +477,8 @@ def inference_command(
     }
     
     try:
-        # Load the image for visual features
         first_image = load_image(input_image)
-        
-        # Extract words from OCR result
         all_words = ocr_result.get("words", [])
-        
-        # Convert word format if needed
         normalized_words = []
         for w in all_words:
             box = w.get("box", {})
@@ -454,23 +491,16 @@ def inference_command(
         field_extractor = FieldExtractor()
         model_predictions = None
         
-        # Try model inference
         try:
             from ..models import get_model
-            
-            logger.info(f"Running {model_type} model inference...")
             model_obj = get_model(
                 model_type,
                 model_name_or_path=model,
                 device=actual_device
             )
             model_obj.load()
-            
-            # Prepare tokens and boxes for models that need them
             tokens = [w['text'] for w in normalized_words] if normalized_words else []
             boxes = [w['box'] for w in normalized_words] if normalized_words else []
-            
-            # Run prediction
             if model_type == "layoutlmv3" and not normalized_words:
                 logger.warning("LayoutLMv3 requires OCR words. Skipping model inference.")
             else:
@@ -479,56 +509,58 @@ def inference_command(
                     boxes=boxes,
                     image=first_image
                 )
-                
                 if model_result.get("entities"):
                     model_predictions = model_result["entities"]
-                    logger.info(f"Model extracted entities: {list(model_predictions.keys())}")
-                    
+                    logger.info(json.dumps({
+                        "event": "model_entities",
+                        "job_id": effective_job_id,
+                        "entities": list(model_predictions.keys())
+                    }))
         except Exception as e:
-            logger.warning(f"{model_type} inference failed: {e}. Using heuristic extraction.")
+            logger.warning(json.dumps({
+                "event": "model_error",
+                "job_id": effective_job_id,
+                "error": str(e)
+            }))
         
-        # Extract fields using heuristics (and model predictions if available)
         if normalized_words:
-            # Extract vendor name
             vendor = field_extractor.extract_vendor_name(normalized_words, model_predictions)
             if vendor:
                 result["vendor_name"] = vendor
-            
-            # Extract date
             date = extract_date_field(normalized_words)
             if date:
                 result["date"] = date
-            
-            # Extract total
             total = field_extractor.extract_total(normalized_words, model_predictions)
             if total:
                 result["total_amount"] = total
-            
-            # Extract subtotal
             subtotal = extract_subtotal_field(normalized_words)
             if subtotal:
                 result["subtotal"] = subtotal
-            
-            # Extract tax
             tax = extract_tax_field(normalized_words)
             if tax:
                 result["tax_amount"] = tax
-            
-            # Detect currency
             currency = detect_currency(normalized_words)
             if currency:
                 result["currency"] = currency
-            
-            # Extract line items
             line_items = field_extractor.extract_line_items(normalized_words, model_predictions)
             result["line_items"] = line_items
-            
+        
+        logger.info(json.dumps({
+            "event": "inference_complete",
+            "job_id": effective_job_id,
+            "has_vendor": result["vendor_name"] is not None,
+            "has_total": result["total_amount"] is not None,
+            "line_items": len(result["line_items"])
+        }))
     except Exception as e:
-        logger.error(f"Error during inference: {e}")
+        logger.error(json.dumps({
+            "event": "inference_error",
+            "job_id": effective_job_id,
+            "error": str(e)
+        }))
         result["status"] = "failed"
         result["error"] = str(e)
     
-    # Write output if specified
     if output_path:
         output_file = Path(output_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)

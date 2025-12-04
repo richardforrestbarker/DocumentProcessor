@@ -23,6 +23,31 @@
         </div>
     }
 
+    <!-- Phase Instructions -->
+    <div class="alert alert-info">
+        @switch (currentPhase)
+        {
+            case ProcessingPhase.Preprocessing:
+                <span>
+                    Preprocessing prepares the image for OCR by enhancing clarity and contrast.
+                    Aim for a clean, high-contrast black-and-white result so text is crisp and readable.
+                </span>
+                break;
+            case ProcessingPhase.Ocr:
+                <span>
+                    OCR extracts the raw, unstructured text from the image. Accuracy here is paramount because
+                    downstream steps rely on correctly recognized characters and words.
+                </span>
+                break;
+            case ProcessingPhase.Inference:
+                <span>
+                    Inference structures the extracted text into fields (like vendor, date, totals, line items)
+                    so the computer can perform logic and automation reliably.
+                </span>
+                break;
+        }
+    </div>
+
     <div class="row">
         <!-- Left Panel: Source Image -->
         <div class="col-md-6">
@@ -74,8 +99,14 @@
                     </span>
                     @if (isLoading)
                     {
-                        <div class="spinner-border spinner-border-sm text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            @if (!string.IsNullOrEmpty(currentJobId) && currentJobStatus != null)
+                            {
+                                <span class="ms-2 small text-muted">@currentJobStatus.Phase (@currentJobStatus.Progress%)</span>
+                            }
                         </div>
                     }
                     else if (timerActive)
@@ -196,6 +227,10 @@
             </div>
             <div class="card-body">
                 <div class="row">
+                    <div class="col-12 mb-3 text-muted">
+                        Aim for a clear, high-contrast black-and-white image. Deskew and denoise can help remove artifacts;
+                        contrast settings enhance text legibility to improve OCR accuracy.
+                    </div>
                     <div class="col-md-4">
                         <div class="form-check mb-3">
                             <InputCheckbox class="form-check-input" id="deskew"
@@ -270,6 +305,10 @@
             </div>
             <div class="card-body">
                 <div class="row">
+                    <div class="col-12 mb-3 text-muted">
+                        OCR pulls text from the image. Higher DPI and a clean image improve recognition.
+                        Choose the OCR engine appropriate for your environment; recognition quality is paramount.
+                    </div>
                     <div class="col-md-4">
                         <div class="mb-3">
                             <label for="ocrEngine" class="form-label">OCR Engine</label>
@@ -311,6 +350,10 @@
             </div>
             <div class="card-body">
                 <div class="row">
+                    <div class="col-12 mb-3 text-muted">
+                        Inference structures the OCR text into fields (e.g., vendor, date, totals, line items)
+                        enabling reliable downstream automation and validation.
+                    </div>
                     <div class="col-md-4">
                         <div class="mb-3">
                             <label for="model" class="form-label">Model</label>
@@ -421,6 +464,7 @@
     private int timerSecondsRemaining = 5;
     private double timerProgress = 100;
     private string? currentJobId;
+    private JobStatus? currentJobStatus;
 
     private PreprocessingSettings settings = new();
     private OcrSettings ocrSettings = new();
@@ -430,6 +474,7 @@
 
     private System.Timers.Timer? updateTimer;
     private System.Timers.Timer? progressTimer;
+    private System.Timers.Timer? statusPollTimer;
     private DateTime lastSettingsChange;
 
     protected override void OnInitialized()
@@ -546,6 +591,37 @@
         timerProgress = 100;
     }
 
+    private void StartStatusPolling()
+    {
+        statusPollTimer?.Stop();
+        if (string.IsNullOrEmpty(currentJobId)) return;
+
+        statusPollTimer = new System.Timers.Timer(3000);
+        statusPollTimer.Elapsed += async (s, e) => await PollJobStatus();
+        statusPollTimer.AutoReset = true;
+        statusPollTimer.Start();
+    }
+
+    private void StopStatusPolling()
+    {
+        statusPollTimer?.Stop();
+    }
+
+    private async Task PollJobStatus()
+    {
+        if (string.IsNullOrEmpty(currentJobId)) return;
+        try
+        {
+            var status = await DocumentProcessingClient.GetJobStatusAsync(currentJobId);
+            currentJobStatus = status;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Failed to poll job status for {JobId}", currentJobId);
+        }
+    }
+
     private void OnProgressTick(object? sender, ElapsedEventArgs e)
     {
         var elapsed = (DateTime.UtcNow - lastSettingsChange).TotalSeconds;
@@ -574,6 +650,8 @@
         isLoading = true;
         errorMessage = null;
         currentJobId = Guid.NewGuid().ToString();
+        currentJobStatus = null;
+        StartStatusPolling();
         await InvokeAsync(StateHasChanged);
 
         try
@@ -612,6 +690,7 @@
         finally
         {
             isLoading = false;
+            StopStatusPolling();
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -630,6 +709,8 @@
         isLoading = true;
         errorMessage = null;
         currentJobId = Guid.NewGuid().ToString();
+        currentJobStatus = null;
+        StartStatusPolling();
         await InvokeAsync(StateHasChanged);
 
         try
@@ -663,6 +744,7 @@
         finally
         {
             isLoading = false;
+            StopStatusPolling();
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -685,6 +767,8 @@
         {
             currentJobId = Guid.NewGuid().ToString();
         }
+        currentJobStatus = null;
+        StartStatusPolling();
         await InvokeAsync(StateHasChanged);
 
         try
@@ -718,6 +802,7 @@
         finally
         {
             isLoading = false;
+            StopStatusPolling();
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -754,12 +839,15 @@
     private void Reset()
     {
         ResetTimer();
+        StopStatusPolling();
         sourceImageBase64 = null;
         preprocessedImageBase64 = null;
         ocrResult = null;
         inferenceResult = null;
         errorMessage = null;
         currentPhase = ProcessingPhase.Preprocessing;
+        currentJobId = null;
+        currentJobStatus = null;
         settings = new PreprocessingSettings();
         ocrSettings = new OcrSettings();
         inferenceSettings = new InferenceSettings();
@@ -778,6 +866,7 @@
     {
         updateTimer?.Dispose();
         progressTimer?.Dispose();
+        statusPollTimer?.Dispose();
     }
 
     // Settings classes

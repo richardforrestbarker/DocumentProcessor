@@ -18,6 +18,20 @@ def _add_device_argument(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_logging_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Enable verbose logging"
+    )
+    parser.add_argument(
+        "--log-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Explicit log level override"
+    )
+
+
 def _add_preprocessing_arguments(parser: argparse.ArgumentParser) -> None:
     """Add common preprocessing arguments to a parser."""
     parser.add_argument(
@@ -184,12 +198,7 @@ Types:
         action="store_true",
         help="Skip LayoutLM model inference (use only heuristic extraction)"
     )
-    process_parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Enable verbose logging"
-    )
+    _add_logging_arguments(process_parser)
     process_parser.add_argument(
         "--debug",
         action="store_true",
@@ -253,7 +262,7 @@ Types:
     preprocess_parser.add_argument(
         "--output",
         "-o",
-        help="Path to write preprocessed image. If not specified, outputs base64 encoded image to stdout"
+        help="Path to write preprocessed result JSON. If not specified, outputs base64 encoded image to stdout"
     )
     preprocess_parser.add_argument(
         "--output-format",
@@ -265,12 +274,7 @@ Types:
         "--job-id",
         help="Job identifier for tracking"
     )
-    preprocess_parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Enable verbose logging"
-    )
+    _add_logging_arguments(preprocess_parser)
     _add_preprocessing_arguments(preprocess_parser)
     
     # OCR command (resampling + OCR)
@@ -294,12 +298,7 @@ Types:
         "--job-id",
         help="Job identifier for tracking"
     )
-    ocr_parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Enable verbose logging"
-    )
+    _add_logging_arguments(ocr_parser)
     _add_ocr_arguments(ocr_parser)
     
     # Inference command (model inference)
@@ -329,12 +328,7 @@ Types:
         "--job-id",
         help="Job identifier for tracking"
     )
-    inference_parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Enable verbose logging"
-    )
+    _add_logging_arguments(inference_parser)
     _add_inference_arguments(inference_parser)
     
     # Version command

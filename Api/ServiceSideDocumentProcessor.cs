@@ -53,8 +53,11 @@ namespace DocumentProcessor.Api.Ocr
                 
                 var extension = GetImageExtension(request.Filename);
                 var inputPath = Path.Combine(tempDir, $"input{extension}");
+                var outputPath = Path.Combine(tempDir, "preprocess_result.json");
                 var imageBytes = Convert.FromBase64String(request.ImageBase64);
                 await File.WriteAllBytesAsync(inputPath, imageBytes);
+
+                _logger.LogInformation("Preprocess input saved: {InputPath} ({Bytes} bytes)", inputPath, imageBytes.Length);
 
                 // Build CLI arguments
                 var pythonPath = FindPythonExecutable();
@@ -65,6 +68,7 @@ namespace DocumentProcessor.Api.Ocr
                     cliPath,
                     "preprocess",
                     "--image", inputPath,
+                    "--output", outputPath,
                     "--output-format", "base64",
                     "--job-id", jobId
                 };
@@ -94,11 +98,17 @@ namespace DocumentProcessor.Api.Ocr
                 };
 
                 // Run CLI
-                var output = await RunPythonCliAsync(pythonPath, args);
+                await RunPythonCliAsync(pythonPath, args);
                 
-                // Parse result
-                var cliResult = JsonSerializer.Deserialize<JsonElement>(output);
-                
+                // Read result from file
+                if (!File.Exists(outputPath))
+                {
+                    throw new FileNotFoundException("Preprocessing output not found", outputPath);
+                }
+
+                var outputJson = await File.ReadAllTextAsync(outputPath);
+                var cliResult = JsonSerializer.Deserialize<JsonElement>(outputJson);
+
                 if (cliResult.TryGetProperty("status", out var statusProp) && 
                     statusProp.GetString() == "done")
                 {
@@ -115,6 +125,8 @@ namespace DocumentProcessor.Api.Ocr
                     result.Height = cliResult.TryGetProperty("height", out var hProp) 
                         ? hProp.GetInt32() 
                         : 0;
+
+                    _logger.LogInformation("Preprocessing completed: {Width}x{Height}, format {Format}", result.Width, result.Height, result.ImageFormat);
                 }
                 else
                 {
@@ -188,8 +200,11 @@ namespace DocumentProcessor.Api.Ocr
                 Directory.CreateDirectory(tempDir);
                 
                 var inputPath = Path.Combine(tempDir, "preprocessed.png");
+                var outputPath = Path.Combine(tempDir, "ocr_result.json");
                 var imageBytes = Convert.FromBase64String(request.ImageBase64);
                 await File.WriteAllBytesAsync(inputPath, imageBytes);
+
+                _logger.LogInformation("OCR input saved: {InputPath} ({Bytes} bytes)", inputPath, imageBytes.Length);
 
                 // Build CLI arguments
                 var pythonPath = FindPythonExecutable();
@@ -200,6 +215,7 @@ namespace DocumentProcessor.Api.Ocr
                     cliPath,
                     "ocr",
                     "--image", inputPath,
+                    "--output", outputPath,
                     "--job-id", jobId,
                     "--ocr-engine", request.OcrEngine,
                     "--target-dpi", request.TargetDpi.ToString(),
@@ -216,10 +232,16 @@ namespace DocumentProcessor.Api.Ocr
                 };
 
                 // Run CLI
-                var output = await RunPythonCliAsync(pythonPath, args);
+                await RunPythonCliAsync(pythonPath, args);
                 
-                // Parse result
-                var cliResult = JsonSerializer.Deserialize<JsonElement>(output);
+                // Read result from file
+                if (!File.Exists(outputPath))
+                {
+                    throw new FileNotFoundException("OCR output not found", outputPath);
+                }
+
+                var outputJson = await File.ReadAllTextAsync(outputPath);
+                var cliResult = JsonSerializer.Deserialize<JsonElement>(outputJson);
                 
                 if (cliResult.TryGetProperty("status", out var statusProp) && 
                     statusProp.GetString() == "done")
@@ -257,6 +279,8 @@ namespace DocumentProcessor.Api.Ocr
                             });
                         }
                     }
+
+                    _logger.LogInformation("OCR completed: {Width}x{Height}, words {WordCount}", result.ImageWidth, result.ImageHeight, result.Words.Count);
                 }
                 else
                 {
@@ -330,12 +354,15 @@ namespace DocumentProcessor.Api.Ocr
                 Directory.CreateDirectory(tempDir);
                 
                 var imagePath = Path.Combine(tempDir, "image.png");
+                var ocrResultPath = Path.Combine(tempDir, "ocr_result.json");
+                var outputPath = Path.Combine(tempDir, "inference_result.json");
                 var imageBytes = Convert.FromBase64String(request.ImageBase64);
                 await File.WriteAllBytesAsync(imagePath, imageBytes);
 
-                var ocrResultPath = Path.Combine(tempDir, "ocr_result.json");
                 var ocrResultJson = JsonSerializer.Serialize(request.OcrResult);
                 await File.WriteAllTextAsync(ocrResultPath, ocrResultJson);
+
+                _logger.LogInformation("Inference inputs saved: {ImagePath}, {OcrPath}", imagePath, ocrResultPath);
 
                 // Build CLI arguments
                 var pythonPath = FindPythonExecutable();
@@ -347,6 +374,7 @@ namespace DocumentProcessor.Api.Ocr
                     "inference",
                     "--ocr-result", ocrResultPath,
                     "--image", imagePath,
+                    "--output", outputPath,
                     "--job-id", jobId,
                     "--model", request.Model,
                     "--model-type", request.ModelType,
@@ -363,10 +391,16 @@ namespace DocumentProcessor.Api.Ocr
                 };
 
                 // Run CLI
-                var output = await RunPythonCliAsync(pythonPath, args);
+                await RunPythonCliAsync(pythonPath, args);
                 
-                // Parse result
-                var cliResult = JsonSerializer.Deserialize<JsonElement>(output);
+                // Read result from file
+                if (!File.Exists(outputPath))
+                {
+                    throw new FileNotFoundException("Inference output not found", outputPath);
+                }
+
+                var outputJson = await File.ReadAllTextAsync(outputPath);
+                var cliResult = JsonSerializer.Deserialize<JsonElement>(outputJson);
                 
                 if (cliResult.TryGetProperty("status", out var statusProp) && 
                     statusProp.GetString() == "done")
@@ -395,6 +429,8 @@ namespace DocumentProcessor.Api.Ocr
                             });
                         }
                     }
+
+                    _logger.LogInformation("Inference completed for job {JobId} with {ItemCount} items", jobId, result.LineItems.Count);
                 }
                 else
                 {
