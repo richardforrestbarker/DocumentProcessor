@@ -94,6 +94,11 @@ DocumentProcessor/
 ├── Wasm/                     # Blazor WebAssembly components
 │   ├── DocumentProcessing.razor # Main document processing component
 │   └── ClientSideDocumentProcessor.cs # Client-side implementation
+├── Example/                  # Example Blazor web application
+│   ├── Components/Pages/     # Blazor pages
+│   │   └── Home.razor        # Home page with DocumentProcessingView
+│   ├── Program.cs            # Application startup
+│   └── appsettings.json      # Configuration including API URL
 ├── Ocr/                      # Python OCR service
 │   ├── cli.py                # Command-line interface
 │   ├── src/                  # Python source code
@@ -159,6 +164,56 @@ To use the interactive document processing UI in your Blazor application:
 @page "/process-document"
 <DocumentProcessing />
 ```
+
+## Running the Example Application
+
+The repository includes a complete example Blazor web application that demonstrates how to use the DocumentProcessor component with client-side rendering. The Example application includes the DocumentProcessingView component and is pre-configured to work with the API.
+
+### Prerequisites
+
+Before running the Example application, ensure you have:
+1. Built the solution (see "Building the Project" section above)
+2. Set up the Python OCR service (see "Set Up the Python OCR Service" section above)
+
+### Running the Example
+
+The Example application requires two processes to be running:
+
+#### 1. Start the API Service
+
+In a terminal window, start the API service:
+
+```bash
+dotnet run --project Api/Api.csproj
+```
+
+The API will be available at `https://localhost:7415`.
+
+#### 2. Start the Example Application
+
+In another terminal window, start the Example application:
+
+```bash
+dotnet run --project Example/Example.csproj
+```
+
+The Example application will be available at `https://localhost:7256`. Open this URL in your browser to access the document processing interface.
+
+### Using the Example Application
+
+1. The home page displays the DocumentProcessingView component
+2. Upload a document image (receipt, invoice, or form)
+3. Adjust preprocessing settings (deskew, denoise, contrast) and preview the results
+4. Continue to OCR to extract text
+5. Continue to Inference to extract structured fields
+6. Accept the final result when satisfied
+
+The Example application demonstrates:
+- Client-side rendering with Blazor WebAssembly
+- Integration with both the Api and Wasm projects
+- Proper configuration of appsettings.json for API communication
+- Usage of the DocumentProcessingView component
+- Complete document processing workflow
 
 ## API Endpoints
 
