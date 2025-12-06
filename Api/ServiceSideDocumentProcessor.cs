@@ -2,10 +2,8 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
 using DocumentProcessor.Data.Ocr.Messages;
-using DocumentProcessor.Data.Messages;
 using DocumentProcessor.Data.Ocr;
 using DocumentProcessor.Data;
-using DocumentProcessor.Data.Messages;
 using Microsoft.Extensions.Logging;
 
 namespace DocumentProcessor.Api.Ocr
@@ -98,7 +96,7 @@ namespace DocumentProcessor.Api.Ocr
                 };
 
                 // Run CLI
-                await RunPythonCliAsync(pythonPath, args);
+                await RunPythonCliAsync(pythonPath, args, jobId);
                 
                 // Read result from file
                 if (!File.Exists(outputPath))
@@ -232,7 +230,7 @@ namespace DocumentProcessor.Api.Ocr
                 };
 
                 // Run CLI
-                await RunPythonCliAsync(pythonPath, args);
+                await RunPythonCliAsync(pythonPath, args, jobId);
                 
                 // Read result from file
                 if (!File.Exists(outputPath))
@@ -391,7 +389,7 @@ namespace DocumentProcessor.Api.Ocr
                 };
 
                 // Run CLI
-                await RunPythonCliAsync(pythonPath, args);
+                await RunPythonCliAsync(pythonPath, args, jobId);
                 
                 // Read result from file
                 if (!File.Exists(outputPath))
@@ -520,7 +518,7 @@ namespace DocumentProcessor.Api.Ocr
             return string.IsNullOrEmpty(ext) ? ".png" : ext;
         }
 
-        private async Task<string> RunPythonCliAsync(string pythonPath, List<string> args)
+        private async Task<string> RunPythonCliAsync(string pythonPath, List<string> args, string? jobId = null)
         {
             var processStartInfo = new ProcessStartInfo
             {
@@ -540,14 +538,48 @@ namespace DocumentProcessor.Api.Ocr
                 throw new InvalidOperationException("Failed to start CLI process");
             }
 
-            var outputTask = process.StandardOutput.ReadToEndAsync();
-            var errorTask = process.StandardError.ReadToEndAsync();
+            var outputLines = new System.Collections.Generic.List<string>();
+            var errorBuilder = new System.Text.StringBuilder();
+
+            // Read stdout line by line and parse JSON events
+            var outputTask = Task.Run(async () =>
+            {
+                while (!process.StandardOutput.EndOfStream)
+                {
+                    var line = await process.StandardOutput.ReadLineAsync();
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        outputLines.Add(line);
+                        
+                        // Try to parse as JSON event
+                        if (jobId != null)
+                        {
+                            TryParseAndUpdateJobStatus(line, jobId);
+                        }
+                    }
+                }
+            });
+
+            var errorTask = Task.Run(async () =>
+            {
+                while (!process.StandardError.EndOfStream)
+                {
+                    var line = await process.StandardError.ReadLineAsync();
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        errorBuilder.AppendLine(line);
+                    }
+                }
+            });
 
             // Wait for process with timeout (60 seconds for faster live view feedback)
             var completed = process.WaitForExit(60000);
 
-            var output = await outputTask;
-            var error = await errorTask;
+            await outputTask;
+            await errorTask;
+
+            var output = string.Join(Environment.NewLine, outputLines);
+            var error = errorBuilder.ToString();
 
             if (!completed)
             {
@@ -568,6 +600,107 @@ namespace DocumentProcessor.Api.Ocr
             }
 
             return output;
+        }
+
+        private void TryParseAndUpdateJobStatus(string line, string jobId)
+        {
+            try
+            {
+                var json = JsonSerializer.Deserialize<JsonElement>(line);
+                if (json.TryGetProperty("event", out var eventProp))
+                {
+                    var eventType = eventProp.GetString();
+                    UpdateJobStatusFromEvent(jobId, eventType, json);
+                }
+            }
+            catch (JsonException)
+            {
+                // Not a JSON line, ignore it
+            }
+        }
+
+        private void UpdateJobStatusFromEvent(string jobId, string? eventType, JsonElement eventData)
+        {
+            if (string.IsNullOrEmpty(eventType))
+                return;
+
+            var status = _jobs.GetOrAdd(jobId, new JobStatus
+            {
+                JobId = jobId,
+                Status = "processing",
+                Phase = "unknown",
+                Progress = 0
+            });
+
+            switch (eventType)
+            {
+                case "preprocess_start":
+                    status.Status = "processing";
+                    status.Phase = "preprocessing";
+                    status.Progress = 10;
+                    status.Message = "Starting preprocessing";
+                    break;
+                case "preprocess_complete":
+                    status.Status = "processing";
+                    status.Phase = "preprocessing";
+                    status.Progress = 90;
+                    status.Message = "Preprocessing complete";
+                    break;
+                case "preprocess_error":
+                    status.Status = "failed";
+                    status.Phase = "preprocessing";
+                    status.Error = eventData.TryGetProperty("error", out var err) ? err.GetString() : "Unknown error";
+                    break;
+                case "ocr_start":
+                    status.Status = "processing";
+                    status.Phase = "ocr";
+                    status.Progress = 10;
+                    status.Message = "Starting OCR";
+                    break;
+                case "ocr_complete":
+                    status.Status = "processing";
+                    status.Phase = "ocr";
+                    status.Progress = 90;
+                    status.Message = "OCR complete";
+                    break;
+                case "ocr_error":
+                    status.Status = "failed";
+                    status.Phase = "ocr";
+                    status.Error = eventData.TryGetProperty("error", out var ocrErr) ? ocrErr.GetString() : "Unknown error";
+                    break;
+                case "inference_start":
+                    status.Status = "processing";
+                    status.Phase = "inference";
+                    status.Progress = 10;
+                    status.Message = "Starting model inference";
+                    break;
+                case "model_entities":
+                    status.Status = "processing";
+                    status.Phase = "inference";
+                    status.Progress = 50;
+                    status.Message = "Extracting fields";
+                    break;
+                case "inference_complete":
+                    status.Status = "processing";
+                    status.Phase = "inference";
+                    status.Progress = 90;
+                    status.Message = "Inference complete";
+                    break;
+                case "inference_error":
+                    status.Status = "failed";
+                    status.Phase = "inference";
+                    status.Error = eventData.TryGetProperty("error", out var infErr) ? infErr.GetString() : "Unknown error";
+                    break;
+                case "model_error":
+                    // Model error is a warning, not a failure
+                    status.Status = "processing";
+                    status.Phase = "inference";
+                    status.Message = "Model unavailable, using heuristics";
+                    break;
+            }
+
+            _jobs[jobId] = status;
+            _logger.LogDebug("Updated job {JobId} status: {Phase} - {Message}", jobId, status.Phase, status.Message);
         }
 
         private string FindPythonExecutable()

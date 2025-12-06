@@ -139,7 +139,14 @@
                             <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
                                 <span class="visually-hidden">Processing...</span>
                             </div>
-                            <p class="mt-3 text-muted">Processing image...</p>
+                            @if (currentJobStatus != null && !string.IsNullOrEmpty(currentJobStatus.Message))
+                            {
+                                <p class="mt-3 text-muted">@currentJobStatus.Message</p>
+                            }
+                            else
+                            {
+                                <p class="mt-3 text-muted">Processing image...</p>
+                            }
                         </div>
                     }
                     else if (currentPhase == ProcessingPhase.Preprocessing && !string.IsNullOrEmpty(preprocessedImageBase64))
@@ -443,6 +450,54 @@
     public EventCallback<InferenceResult> OnResultAccepted { get; set; }
 
     /// <summary>
+    /// Event callback when preprocessing starts.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnPreprocessingStarted { get; set; }
+
+    /// <summary>
+    /// Event callback when preprocessing completes.
+    /// </summary>
+    [Parameter]
+    public EventCallback<PreprocessingResult> OnPreprocessingCompleted { get; set; }
+
+    /// <summary>
+    /// Event callback when OCR starts.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnOcrStarted { get; set; }
+
+    /// <summary>
+    /// Event callback when OCR completes.
+    /// </summary>
+    [Parameter]
+    public EventCallback<OcrResult> OnOcrCompleted { get; set; }
+
+    /// <summary>
+    /// Event callback when inference starts.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnInferenceStarted { get; set; }
+
+    /// <summary>
+    /// Event callback when inference completes.
+    /// </summary>
+    [Parameter]
+    public EventCallback<InferenceResult> OnInferenceCompleted { get; set; }
+
+    /// <summary>
+    /// Event callback when job status is updated.
+    /// </summary>
+    [Parameter]
+    public EventCallback<JobStatus> OnJobStatusChanged { get; set; }
+
+    /// <summary>
+    /// Event callback when an error occurs.
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnError { get; set; }
+
+    /// <summary>
     /// Optional initial image as base64.
     /// </summary>
     [Parameter]
@@ -531,11 +586,13 @@
             var bytes = memoryStream.ToArray();
             sourceImageBase64 = Convert.ToBase64String(bytes);
 
-            // Clear previous results
+            // Clear previous results and reset job ID for new image
             preprocessedImageBase64 = null;
             ocrResult = null;
             inferenceResult = null;
             currentPhase = ProcessingPhase.Preprocessing;
+            currentJobId = null;
+            currentJobStatus = null;
 
             // Trigger preprocessing
             OnSettingsChanged();
@@ -613,7 +670,11 @@
         try
         {
             var status = await DocumentProcessingClient.GetJobStatusAsync(currentJobId);
-            currentJobStatus = status;
+            if (status != null)
+            {
+                currentJobStatus = status;
+                await OnJobStatusChanged.InvokeAsync(status);
+            }
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
@@ -649,9 +710,14 @@
 
         isLoading = true;
         errorMessage = null;
-        currentJobId = Guid.NewGuid().ToString();
+        // Create job ID only if it doesn't exist (on first run for this image)
+        if (string.IsNullOrEmpty(currentJobId))
+        {
+            currentJobId = Guid.NewGuid().ToString();
+        }
         currentJobStatus = null;
         StartStatusPolling();
+        await OnPreprocessingStarted.InvokeAsync(currentJobId);
         await InvokeAsync(StateHasChanged);
 
         try
@@ -675,17 +741,20 @@
             {
                 preprocessedImageBase64 = result.ImageBase64;
                 Logger.LogInformation("Preprocessing complete for job {JobId}", currentJobId);
+                await OnPreprocessingCompleted.InvokeAsync(result);
             }
             else
             {
                 errorMessage = result?.Error ?? "Preprocessing failed";
                 Logger.LogWarning("Preprocessing failed: {Error}", errorMessage);
+                await OnError.InvokeAsync(errorMessage);
             }
         }
         catch (Exception ex)
         {
             errorMessage = $"Error during preprocessing: {ex.Message}";
             Logger.LogError(ex, "Error during preprocessing");
+            await OnError.InvokeAsync(errorMessage);
         }
         finally
         {
@@ -708,9 +777,14 @@
 
         isLoading = true;
         errorMessage = null;
-        currentJobId = Guid.NewGuid().ToString();
+        // Reuse the same job ID from preprocessing for consistency
+        if (string.IsNullOrEmpty(currentJobId))
+        {
+            currentJobId = Guid.NewGuid().ToString();
+        }
         currentJobStatus = null;
         StartStatusPolling();
+        await OnOcrStarted.InvokeAsync(currentJobId);
         await InvokeAsync(StateHasChanged);
 
         try
@@ -730,16 +804,19 @@
             if (ocrResult == null || ocrResult.Status != "done")
             {
                 errorMessage = ocrResult?.Error ?? "OCR failed";
+                await OnError.InvokeAsync(errorMessage);
                 return;
             }
 
             Logger.LogInformation("OCR complete for job {JobId}, detected {WordCount} words",
                 currentJobId, ocrResult.Words?.Count ?? 0);
+            await OnOcrCompleted.InvokeAsync(ocrResult);
         }
         catch (Exception ex)
         {
             errorMessage = $"Error during OCR: {ex.Message}";
             Logger.LogError(ex, "Error during OCR");
+            await OnError.InvokeAsync(errorMessage);
         }
         finally
         {
@@ -762,13 +839,14 @@
 
         isLoading = true;
         errorMessage = null;
-        // Use OCR's JobId for inference to maintain tracking consistency
+        // Reuse the same job ID from preprocessing/OCR for consistency
         if (string.IsNullOrEmpty(currentJobId))
         {
             currentJobId = Guid.NewGuid().ToString();
         }
         currentJobStatus = null;
         StartStatusPolling();
+        await OnInferenceStarted.InvokeAsync(currentJobId);
         await InvokeAsync(StateHasChanged);
 
         try
@@ -789,15 +867,18 @@
             if (inferenceResult == null || inferenceResult.Status != "done")
             {
                 errorMessage = inferenceResult?.Error ?? "Inference failed";
+                await OnError.InvokeAsync(errorMessage);
                 return;
             }
 
             Logger.LogInformation("Inference complete for job {JobId}", currentJobId);
+            await OnInferenceCompleted.InvokeAsync(inferenceResult);
         }
         catch (Exception ex)
         {
             errorMessage = $"Error during inference: {ex.Message}";
             Logger.LogError(ex, "Error during inference");
+            await OnError.InvokeAsync(errorMessage);
         }
         finally
         {
