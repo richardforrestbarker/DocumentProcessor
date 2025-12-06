@@ -605,6 +605,12 @@ namespace DocumentProcessor.Api.Ocr
 
         private void TryParseAndUpdateJobStatus(string line, string jobId)
         {
+            // Quick check: JSON lines start with '{'
+            if (!line.TrimStart().StartsWith('{'))
+            {
+                return;
+            }
+
             try
             {
                 var json = JsonSerializer.Deserialize<JsonElement>(line);
