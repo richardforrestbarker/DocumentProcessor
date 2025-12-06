@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
 using DocumentProcessor.Data.Ocr.Messages;
+using DocumentProcessor.Data.Messages;
 using DocumentProcessor.Data.Ocr;
 using DocumentProcessor.Data;
 using Microsoft.Extensions.Logging;
@@ -640,6 +641,12 @@ namespace DocumentProcessor.Api.Ocr
                     status.Progress = 10;
                     status.Message = "Starting preprocessing";
                     break;
+                case "preprocessing_image":
+                    status.Status = "processing";
+                    status.Phase = "preprocessing";
+                    status.Progress = 50;
+                    status.Message = "Applying image filters";
+                    break;
                 case "preprocess_complete":
                     status.Status = "processing";
                     status.Phase = "preprocessing";
@@ -657,6 +664,18 @@ namespace DocumentProcessor.Api.Ocr
                     status.Progress = 10;
                     status.Message = "Starting OCR";
                     break;
+                case "resampling_image":
+                    status.Status = "processing";
+                    status.Phase = "ocr";
+                    status.Progress = 20;
+                    status.Message = "Resampling image";
+                    break;
+                case "running_ocr_engine":
+                    status.Status = "processing";
+                    status.Phase = "ocr";
+                    status.Progress = 40;
+                    status.Message = eventData.TryGetProperty("message", out var ocrMsg) ? ocrMsg.GetString() : "Running OCR";
+                    break;
                 case "ocr_complete":
                     status.Status = "processing";
                     status.Phase = "ocr";
@@ -672,12 +691,30 @@ namespace DocumentProcessor.Api.Ocr
                     status.Status = "processing";
                     status.Phase = "inference";
                     status.Progress = 10;
-                    status.Message = "Starting model inference";
+                    status.Message = "Starting inference";
+                    break;
+                case "loading_model":
+                    status.Status = "processing";
+                    status.Phase = "inference";
+                    status.Progress = 20;
+                    status.Message = "Loading ML model";
+                    break;
+                case "running_inference":
+                    status.Status = "processing";
+                    status.Phase = "inference";
+                    status.Progress = 40;
+                    status.Message = "Running inference";
                     break;
                 case "model_entities":
                     status.Status = "processing";
                     status.Phase = "inference";
-                    status.Progress = 50;
+                    status.Progress = 60;
+                    status.Message = "Model predictions complete";
+                    break;
+                case "extracting_fields":
+                    status.Status = "processing";
+                    status.Phase = "inference";
+                    status.Progress = 70;
                     status.Message = "Extracting fields";
                     break;
                 case "inference_complete":
@@ -695,6 +732,7 @@ namespace DocumentProcessor.Api.Ocr
                     // Model error is a warning, not a failure
                     status.Status = "processing";
                     status.Phase = "inference";
+                    status.Progress = 50;
                     status.Message = "Model unavailable, using heuristics";
                     break;
             }
