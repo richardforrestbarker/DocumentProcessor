@@ -317,15 +317,9 @@ def preprocess_command(
             base64_data = base64.b64encode(buffer.getvalue()).decode('utf-8')
             result["image_base64"] = base64_data
             result["image_format"] = "png"
-        elif output_format == "file":
-            if output_path:
-                pil_image.save(output_path)
-                result["output_path"] = output_path
-            else:
-                fd, temp_path = tempfile.mkstemp(suffix=".png")
-                os.close(fd)
-                pil_image.save(temp_path)
-                result["output_path"] = temp_path
+        elif output_path:
+            pil_image.save(output_path)
+            result["output_path"] = output_path
 
         logger.info(json.dumps({
             "event": "preprocess_complete",
@@ -478,8 +472,30 @@ def inference_command(
         "device": device
     }))
     
+    # Restrict supported models
+    supported_models = {
+        "naver-clova-ix/donut-base-finetuned-cord-v2",
+        "HuggingFaceM4/idefics2-8b",
+    }
+    if model not in supported_models:
+        err = {
+            "event": "model_error",
+            "job_id": job_id,
+            "error": f"Unsupported model '{model}'. Supported models are: {', '.join(sorted(supported_models))}"
+        }
+        logger.warning(json.dumps(err))
+        return {
+            "job_id": job_id or f"inference-{hash(input_image) % 100000:05d}",
+            "status": "failed",
+            "input_image": input_image,
+            "ocr_result_path": ocr_result_path,
+            "model": model,
+            "error": err["error"]
+        }
+
     actual_device = get_device(device)
     from ..postprocessing.field_extractor import FieldExtractor
+    from ..models import get_model, LayoutLMv3Model
     
     with open(ocr_result_path, 'r') as f:
         ocr_result = json.load(f)
@@ -491,6 +507,7 @@ def inference_command(
         "status": "done",
         "input_image": input_image,
         "ocr_result_path": ocr_result_path,
+        "model": model,
         "vendor_name": None,
         "merchant_address": None,
         "date": None,
@@ -520,14 +537,14 @@ def inference_command(
             logger.info(json.dumps({
                 "event": "loading_model",
                 "job_id": effective_job_id,
-                "message": f"Loading {model_type} model"
+                "message": f"Loading model {model}"
             }))
-            from ..models import get_model
             model_obj = get_model(model_name_or_path=model, device=actual_device)
             model_obj.load()
             tokens = [w['text'] for w in normalized_words] if normalized_words else []
             boxes = [w['box'] for w in normalized_words] if normalized_words else []
-            if model_type == "layoutlmv3" and not normalized_words:
+            # If LayoutLMv3 and words are missing, warn user and skip model inference
+            if isinstance(model_obj, LayoutLMv3Model) and not normalized_words:
                 logger.warning("LayoutLMv3 requires OCR words. Skipping model inference.")
             else:
                 logger.info(json.dumps({

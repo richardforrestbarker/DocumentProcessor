@@ -27,6 +27,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="cli.py" />
+    <Compile Include="src\models\donut.py" />
+    <Compile Include="src\models\idefics2.py" />
     <Compile Include="src\__init__.py" />
     <Compile Include="src\config.py" />
     <Compile Include="src\receipt_processor.py" />
@@ -40,7 +42,6 @@
     <Compile Include="tests\test_cli_integration.py" />
     <Compile Include="tests\test_cli_unit.py" />
     <Compile Include="tests\__init__.py" />
-
     <Folder Include="scripts\" />
     <Folder Include="src\" />
     <Folder Include="src\models\" />
@@ -51,7 +52,6 @@
     <Folder Include="docs\" />
     <Folder Include="tests\" />
     <Folder Include="tests\fixtures\" />
-
     <Content Include="requirements.txt" />
     <Content Include="Dockerfile" />
     <Content Include="README.md" />

@@ -429,7 +429,10 @@
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label for="model" class="form-label">Model</label>
-                            <InputText class="form-control" id="model" @bind-Value="inferenceSettings.Model" />
+                            <InputSelect class="form-select" id="model" @bind-Value="inferenceSettings.Model">
+                                <option value="naver-clova-ix/donut-base-finetuned-cord-v2">Donut (CORD-v2)</option>
+                                <option value="HuggingFaceM4/idefics2-8b">IDEFICS2 (8B)</option>
+                            </InputSelect>
                         </div>
                     </div>
                     <div class="col-md-6">

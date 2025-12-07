@@ -161,7 +161,6 @@ class TestCLIInferenceCommand:
         ])
         
         assert args.model == 'naver-clova-ix/donut-base-finetuned-cord-v2'
-        assert args.model_type == 'donut'
         assert args.device == 'auto'
 
     def test_inference_command_accepts_custom_options(self):
@@ -173,12 +172,10 @@ class TestCLIInferenceCommand:
             '--ocr-result', 'result.json',
             '--image', 'test.jpg',
             '--model', 'microsoft/layoutlmv3-base',
-            '--model-type', 'layoutlmv3',
             '--device', 'cuda'
         ])
         
         assert args.model == 'microsoft/layoutlmv3-base'
-        assert args.model_type == 'layoutlmv3'
         assert args.device == 'cuda'
 
 
@@ -271,7 +268,6 @@ class TestInferencePhase:
             result = inference_command(
                 ocr_result_path=sample_ocr_command_result_file,
                 input_image=sample_receipt_image_path,
-                model_type='donut',
                 device='cpu'
             )
             
@@ -279,7 +275,7 @@ class TestInferencePhase:
             assert 'job_id' in result
             assert 'status' in result
             assert 'input_image' in result
-            assert 'model_type' in result
+            assert 'model' in result
             
             # These fields should exist (may be None)
             assert 'vendor_name' in result

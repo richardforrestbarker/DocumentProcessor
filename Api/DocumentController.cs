@@ -19,6 +19,12 @@ namespace DocumentProcessor.Api.Controllers
         private readonly ILogger<DocumentController> _logger;
         private readonly IDocumentProcessor _documentProcessor;
 
+        private static readonly HashSet<string> SupportedModels = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "naver-clova-ix/donut-base-finetuned-cord-v2",
+            "HuggingFaceM4/idefics2-8b"
+        };
+
         public DocumentController(
             ILogger<DocumentController> logger,
             IDocumentProcessor documentProcessor)
@@ -120,6 +126,11 @@ namespace DocumentProcessor.Api.Controllers
                 if (string.IsNullOrEmpty(request.ImageBase64))
                 {
                     return BadRequest(new { error = "ImageBase64 is required" });
+                }
+
+                if (!string.IsNullOrEmpty(request.Model) && !SupportedModels.Contains(request.Model))
+                {
+                    return BadRequest(new { error = "Unsupported model. Supported models are: naver-clova-ix/donut-base-finetuned-cord-v2, HuggingFaceM4/idefics2-8b" });
                 }
 
                 _logger.LogInformation("Starting inference for job {JobId}", request.JobId);
