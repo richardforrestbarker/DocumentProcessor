@@ -23,7 +23,7 @@ DEFAULT_CONFIDENCE = 0.8
 FALLBACK_CONFIDENCE = 0.5
 
 # Prompt delimiter for extracting generated response
-PROMPT_DELIMITER = "Now analyze this receipt:"
+PROMPT_DELIMITER = "Now analyze this document:"
 
 # Prompt template for document extraction
 RECEIPT_EXTRACTION_PROMPT = """You are analyzing a financial document image. First identify the document type (receipt, invoice, bill, or other financial document), then extract relevant information in JSON format.

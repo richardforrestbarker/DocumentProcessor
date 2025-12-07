@@ -40,6 +40,7 @@ class FieldExtractor:
             'invoice_number': re.compile(r'(?:invoice|inv|#)\s*[:\-]?\s*([A-Z0-9\-]+)', re.IGNORECASE),
             'po_number': re.compile(r'(?:po|purchase\s+order)\s*[:\-]?\s*([A-Z0-9\-]+)', re.IGNORECASE),
             'account_number': re.compile(r'(?:account|acct)\s*[:\-]?\s*([A-Z0-9\-]+)', re.IGNORECASE),
+            'billing_period': re.compile(r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s*(?:to|-|through)\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})', re.IGNORECASE),
         }
     
     def extract_amount(self, text: str) -> Optional[Decimal]:
@@ -467,15 +468,18 @@ class FieldExtractor:
         """Extract due date from document."""
         for i, w in enumerate(words):
             if 'due' in w['text'].lower():
-                # Look for date in next few words
-                for j in range(i, min(i + 5, len(words))):
-                    date_val = self.extract_date(' '.join(w['text'] for w in words[j:min(j+3, len(words))]))
-                    if date_val:
-                        return {
-                            'value': date_val,
-                            'confidence': words[j]['confidence'],
-                            'box': self._make_box(words[j]['box'])
-                        }
+                # Extract text chunk once for efficiency
+                text_chunk = ' '.join(w['text'] for w in words[i:min(i+8, len(words))])
+                date_val = self.extract_date(text_chunk)
+                if date_val:
+                    # Find the word that contains the date pattern
+                    for j in range(i, min(i + 5, len(words))):
+                        if any(pattern.search(words[j]['text']) for pattern in self.patterns['date']):
+                            return {
+                                'value': date_val,
+                                'confidence': words[j]['confidence'],
+                                'box': self._make_box(words[j]['box'])
+                            }
         return None
     
     def extract_payment_terms(
@@ -513,13 +517,14 @@ class FieldExtractor:
                 # Take next 2-3 words as customer name
                 if i + 1 < len(words):
                     customer_words = words[i+1:min(i+4, len(words))]
-                    customer_name = ' '.join(w['text'] for w in customer_words)
-                    avg_conf = sum(w['confidence'] for w in customer_words) / len(customer_words)
-                    return {
-                        'value': customer_name,
-                        'confidence': avg_conf,
-                        'box': self._combine_boxes([w['box'] for w in customer_words])
-                    }
+                    if len(customer_words) > 0:  # Safety check for division by zero
+                        customer_name = ' '.join(w['text'] for w in customer_words)
+                        avg_conf = sum(w['confidence'] for w in customer_words) / len(customer_words)
+                        return {
+                            'value': customer_name,
+                            'confidence': avg_conf,
+                            'box': self._combine_boxes([w['box'] for w in customer_words])
+                        }
         return None
     
     def extract_customer_address(
@@ -532,13 +537,15 @@ class FieldExtractor:
             if 'bill to' in w['text'].lower() and i + 1 < len(words):
                 # Look for address in next few lines
                 address_words = words[i+1:min(i+10, len(words))]
-                address_text = ' '.join(w['text'] for w in address_words[:5])
-                avg_conf = sum(w['confidence'] for w in address_words[:5]) / min(5, len(address_words))
-                return {
-                    'value': address_text,
-                    'confidence': avg_conf,
-                    'box': self._combine_boxes([w['box'] for w in address_words[:5]])
-                }
+                if len(address_words) > 0:  # Safety check for division by zero
+                    address_text = ' '.join(w['text'] for w in address_words[:5])
+                    num_words = min(5, len(address_words))
+                    avg_conf = sum(w['confidence'] for w in address_words[:num_words]) / num_words
+                    return {
+                        'value': address_text,
+                        'confidence': avg_conf,
+                        'box': self._combine_boxes([w['box'] for w in address_words[:num_words]])
+                    }
         return None
     
     def extract_po_number(
@@ -589,8 +596,8 @@ class FieldExtractor:
                 # Look for dates in next few words
                 for j in range(i, min(i + 10, len(words))):
                     text_chunk = ' '.join(w['text'] for w in words[j:min(j+8, len(words))])
-                    # Look for date range pattern
-                    match = re.search(r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s*(?:to|-|through)\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})', text_chunk, re.IGNORECASE)
+                    # Use compiled pattern for date range
+                    match = self.patterns['billing_period'].search(text_chunk)
                     if match:
                         return {
                             'value': f"{match.group(1)} to {match.group(2)}",
