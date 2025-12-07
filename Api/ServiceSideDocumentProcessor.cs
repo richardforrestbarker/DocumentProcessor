@@ -17,12 +17,14 @@ namespace DocumentProcessor.Api.Ocr
     {
         private readonly ILogger<ServiceSideDocumentProcessor> _logger;
         private readonly OcrConfiguration _config;
+        //todo: because of this, we lose jobs when ever we restart. but thats ojk for now.
         private readonly ConcurrentDictionary<string, JobStatus> _jobs = new();
 
-        public ServiceSideDocumentProcessor(ILogger<ServiceSideDocumentProcessor> logger, OcrConfiguration config)
+        public ServiceSideDocumentProcessor(ILoggerFactory loggerFactory, OcrConfiguration config)
         {
-            _logger = logger;
-            _config = config;
+            _logger = loggerFactory.CreateLogger<ServiceSideDocumentProcessor>();
+            _config = config ?? throw new ArgumentNullException(nameof(config));
+            _logger.LogInformation($"ServiceSideDocumentProcessor is using {_config.PythonServicePath}");            
         }
 
         public async Task<PreprocessingResult> PreprocessImageAsync(PreprocessingRequest request)
