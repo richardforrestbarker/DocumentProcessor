@@ -21,18 +21,6 @@ import json
 import sys
 import logging
 
-# Import required functions for tests
-from src.receipt_processor import (
-    get_device,
-    load_image,
-    preprocess_image,
-    normalize_boxes,
-    extract_fields_heuristic,
-    process_receipt,
-    run_ocr,
-    run_model_inference_standalone,
-)
-
 
 # Configure logging
 logging.basicConfig(

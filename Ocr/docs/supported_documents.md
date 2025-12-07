@@ -186,7 +186,6 @@ To extend support for new document types:
 2. **Add Document-Specific Fields** (if needed):
    - Update `InferenceResult.cs` with new fields
    - Add extraction methods to `FieldExtractor` class
-   - Update `receipt_processor.py` result structure
 
 3. **Update Model Prompts**:
    - Extend document extraction prompts in model implementations

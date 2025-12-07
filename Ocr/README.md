@@ -268,22 +268,6 @@ The debug output helps diagnose issues in the processing pipeline:
 - **Missing text?** Examine OCR bounding boxes visualization
 - **Incorrect field extraction?** Review result bounding boxes to see what fields were identified
 
-### Python API
-
-```python
-from src.receipt_processor import ReceiptProcessor
-
-processor = ReceiptProcessor(
-    model_name="naver-clova-ix/donut-base-finetuned-cord-v2",
-    model_type="donut",
-    ocr_engine="paddle",
-    device="cuda"
-)
-
-result = processor.process_receipt(["document1.jpg", "document2.jpg"])
-print(result.to_json())
-```
-
 ## Configuration
 
 Configuration file: `config/config.yaml`
