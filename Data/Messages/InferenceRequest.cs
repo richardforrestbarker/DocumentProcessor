@@ -26,11 +26,6 @@ namespace DocumentProcessor.Data.Ocr.Messages
         public string Model { get; set; } = "naver-clova-ix/donut-base-finetuned-cord-v2";
         
         /// <summary>
-        /// Model type: 'donut', 'idefics2', or 'layoutlmv3'.
-        /// </summary>
-        public string ModelType { get; set; } = "donut";
-        
-        /// <summary>
         /// Device for inference: 'auto', 'cuda', or 'cpu'.
         /// </summary>
         public string Device { get; set; } = "auto";

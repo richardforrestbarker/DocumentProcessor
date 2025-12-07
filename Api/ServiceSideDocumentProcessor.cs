@@ -87,6 +87,13 @@ namespace DocumentProcessor.Api.Ocr
                     "--contrast-midpoint", request.ContrastMidpoint.ToString()
                 });
 
+                // Threshold options
+                if (request.ApplyThreshold)
+                {
+                    args.Add("--apply-threshold");
+                    args.AddRange(new[] { "--threshold-percent", request.ThresholdPercent.ToString() });
+                }
+
                 _jobs[jobId] = new JobStatus
                 {
                     JobId = jobId,
@@ -376,7 +383,6 @@ namespace DocumentProcessor.Api.Ocr
                     "--output", outputPath,
                     "--job-id", jobId,
                     "--model", request.Model,
-                    "--model-type", request.ModelType,
                     "--device", request.Device
                 };
 

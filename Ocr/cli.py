@@ -70,7 +70,9 @@ def main():
                 deskew_threshold=args.deskew_threshold,
                 contrast_type=args.contrast_type,
                 contrast_strength=args.contrast_strength,
-                contrast_midpoint=args.contrast_midpoint
+                contrast_midpoint=args.contrast_midpoint,
+                apply_threshold=getattr(args, 'apply_threshold', False),
+                threshold_percent=getattr(args, 'threshold_percent', 50)
             )
             
             if not args.output:
@@ -112,7 +114,6 @@ def main():
                 verbose=args.verbose,
                 log_level=args.log_level,
                 model=args.model,
-                model_type=args.model_type,
                 device=args.device
             )
             

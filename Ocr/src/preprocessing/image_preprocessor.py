@@ -67,6 +67,8 @@ class ImagePreprocessor:
     - contrast_type: 'sigmoidal', 'linear', or 'none'
     - contrast_strength: Intensity for sigmoidal contrast (1-10 typical)
     - contrast_midpoint: Midpoint for sigmoidal contrast (0-200%, >100 brightens)
+    - apply_threshold: Whether to apply ImageMagick threshold after contrast
+    - threshold_percent: Threshold percentage (0-100)
     """
     
     def __init__(
@@ -108,6 +110,9 @@ class ImagePreprocessor:
         self.contrast_type = contrast_type
         self.contrast_strength = contrast_strength
         self.contrast_midpoint = contrast_midpoint
+        # New threshold options (settable externally)
+        self.apply_threshold: bool = False
+        self.threshold_percent: int = 50
         
         # Verify ImageMagick is installed
         self._check_imagemagick()
@@ -331,7 +336,7 @@ class ImagePreprocessor:
     def preprocess(self, image_path: str, page_num: int = 1) -> Tuple[np.ndarray, int, int]:
         """
         Preprocess image for OCR using ImageMagick CLI.
-        Pipeline order: Deskew -> Contrast -> Grayscale -> Remove Background -> Denoise -> TIFF
+        Pipeline order: Deskew -> Contrast -> Grayscale -> Remove Background -> Threshold (optional) -> Denoise -> TIFF
         Does NOT perform DPI resampling.
         
         Args:
@@ -408,6 +413,18 @@ class ImagePreprocessor:
                 self._save_debug_image(next_file, "contrast_enhanced", page_num)
                 step += 1
 
+            # Optional threshold step (applied after contrast)
+            if self.apply_threshold:
+                logger.info(f"Step {step}: Applying threshold ({self.threshold_percent}%)...")
+                next_file = os.path.join(temp_dir, f"step{step}_threshold.jpg")
+                # ImageMagick threshold expects a percentage value
+                if not self._run_imagemagick_cmd([
+                    current_file, "-threshold", f"{self.threshold_percent}%", next_file
+                ]):
+                    raise RuntimeError("Failed to apply threshold")
+                current_file = next_file
+                self._save_debug_image(next_file, "threshold", page_num)
+                step += 1
             
             # Step 5: Denoise (optional)
             if self.denoise:
