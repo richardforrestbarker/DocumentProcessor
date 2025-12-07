@@ -32,6 +32,9 @@ Document type is automatically detected using:
 |-------|---------|---------|------|---------------|-------|
 | **Donut** | ✅ Optimized | ⚠️ Limited | ⚠️ Limited | ⚠️ Limited | CORD-v2 fine-tuned for receipts |
 | **IDEFICS2** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | Multi-document support via prompting |
+| **Phi-3-Vision** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | Efficient, 128k context window |
+| **InternVL** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | Strong OCR capabilities |
+| **Qwen2-VL** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | Efficient and accurate |
 | **LayoutLMv3** | ✅ Good | ✅ Good | ✅ Good | ✅ Good | Can be fine-tuned for specific types |
 
 **Legend:**
@@ -121,33 +124,40 @@ Additional fields for bills:
   - Optimized for receipts with CORD-v2 fine-tuning
   - Fast inference (~2-3 seconds on GPU)
   - Lower memory requirements (~2GB)
-- **Alternative**: IDEFICS2 for high accuracy
-  - Better at handling non-standard receipt formats
-  - Requires more memory (~6-16GB)
+- **Alternatives**:
+  - **Qwen2-VL-2B**: Lightweight, good performance
+  - **Phi-3-Vision**: Efficient with strong accuracy
+  - **IDEFICS2**: Better at non-standard formats, higher memory
 
 ### For Invoices
-- **Best**: IDEFICS2 (HuggingFaceM4/idefics2-8b)
+- **Best**: InternVL (OpenGVLab/InternVL2-8B)
   - Excellent understanding of invoice structure
+  - Strong OCR capabilities for detailed text
   - Extracts invoice-specific fields reliably
-  - Handles various invoice layouts
-- **Alternative**: LayoutLMv3 with fine-tuning
-  - Can be fine-tuned on invoice datasets
-  - Good for consistent invoice formats
+- **Alternatives**:
+  - **IDEFICS2**: Very good, handles various layouts
+  - **Qwen2-VL**: Strong performance, efficient
+  - **Phi-3-Vision**: Good balance of speed and accuracy
+  - **LayoutLMv3**: Can be fine-tuned on invoice datasets
 
 ### For Bills
-- **Best**: IDEFICS2 (HuggingFaceM4/idefics2-8b)
-  - Best at understanding billing statements
-  - Extracts account and billing period information
-  - Handles tabular data well
-- **Alternative**: LayoutLMv3 with fine-tuning
-  - Can be trained on specific bill formats (utility, service bills)
+- **Best**: IDEFICS2 or InternVL
+  - Both excel at understanding billing statements
+  - Extract account and billing period information
+  - Handle tabular data well
+- **Alternatives**:
+  - **Qwen2-VL**: Good at structured data extraction
+  - **Phi-3-Vision**: Efficient processing
+  - **LayoutLMv3**: Can be trained on specific bill formats
 
 ### For Mixed Document Types
-- **Best**: IDEFICS2 (HuggingFaceM4/idefics2-8b)
-  - Single model handles all document types
+- **Best**: IDEFICS2, Phi-3-Vision, InternVL, or Qwen2-VL
+  - All support multiple document types
   - Automatic document classification
   - Flexible prompting for custom use cases
-  - Higher resource requirements justified by versatility
+- **Efficiency Choice**: Phi-3-Vision or Qwen2-VL-2B for lower memory usage
+- **Accuracy Choice**: InternVL2-8B or IDEFICS2-8b for highest accuracy
+- **Balanced Choice**: Qwen2-VL-7B for good balance of performance and efficiency
 
 ## Field Extraction Strategy
 

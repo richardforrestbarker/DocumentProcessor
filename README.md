@@ -26,7 +26,9 @@ DocumentProcessor is a reusable .NET component that provides advanced document O
 - **Blazor WebAssembly**: Interactive document processing UI component
 - **Python 3.12**: OCR and machine learning pipeline
 - **PaddleOCR / Tesseract**: Text detection and recognition
-- **Transformer Models**: LayoutLMv3, Donut, IDEFICS2 for field extraction
+- **Transformer Models**: Multiple vision-language models for field extraction
+  - Donut (MIT), IDEFICS2 (Apache 2.0), Phi-3-Vision (MIT)
+  - InternVL (MIT), Qwen2-VL (Apache 2.0), LayoutLMv3
 - **ImageMagick**: Image preprocessing pipeline
 
 ## Prerequisites

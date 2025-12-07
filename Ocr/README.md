@@ -32,13 +32,19 @@ This service provides OCR and structured field extraction from document images u
 | Model | License | OCR Required | Memory | Best For |
 |-------|---------|--------------|--------|----------|
 | Donut | MIT | No | ~2GB | Fast processing, receipt-specific |
-| IDEFICS2 | Apache 2.0 | No | ~16GB (4-bit: ~6GB) | High accuracy, multi-document types, flexible |
-| LayoutLMv3 | - | Yes | ~2GB | Token classification tasks, custom training |
+| IDEFICS2 | Apache 2.0 | No | ~16GB (4-bit: ~6GB) | High accuracy, multi-document types |
+| Phi-3-Vision | MIT | No | ~7GB | Efficient, balanced performance |
+| InternVL | MIT | No | ~8GB (2B: ~4GB) | High accuracy, strong OCR |
+| Qwen2-VL | Apache 2.0 | No | ~7GB (2B: ~4GB) | Strong performance, efficient |
+| LayoutLMv3 | - | Yes | ~2GB | Token classification, custom training |
 
 **Model Capabilities:**
-- **Donut**: Best for receipts (CORD-v2 fine-tuned). Document type is inferred as "receipt".
-- **IDEFICS2**: Supports all document types (receipts, invoices, bills, financial documents). Uses advanced prompting to extract document-specific fields.
-- **LayoutLMv3**: Requires OCR preprocessing. Can be fine-tuned for specific document types.
+- **Donut** (naver-clova-ix/donut-base-finetuned-cord-v2): Best for receipts (CORD-v2 fine-tuned). Document type is inferred as "receipt".
+- **IDEFICS2** (HuggingFaceM4/idefics2-8b): Supports all document types (receipts, invoices, bills, financial documents). Uses advanced prompting to extract document-specific fields.
+- **Phi-3-Vision** (microsoft/Phi-3-vision-128k-instruct): Microsoft's lightweight vision-language model with 128k context window. Good balance of efficiency and accuracy for all document types.
+- **InternVL** (OpenGVLab/InternVL2-8B, InternVL2-4B, InternVL2-2B): Powerful vision-language model with strong OCR and document understanding. Available in multiple sizes.
+- **Qwen2-VL** (Qwen/Qwen2-VL-7B-Instruct, Qwen2-VL-2B-Instruct): Alibaba's efficient vision-language model with strong performance on document tasks.
+- **LayoutLMv3** (microsoft/layoutlmv3-base): Requires OCR preprocessing. Can be fine-tuned for specific document types.
 
 ## Setup
 

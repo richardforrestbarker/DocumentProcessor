@@ -20,8 +20,8 @@ VERSION = "1.0.0"
 
 def version_command() -> None:
     """Display version information."""
-    print(f"Receipt OCR Service v{VERSION}")
-    print("Models: Donut (default), IDEFICS2, LayoutLMv3")
+    print(f"Document OCR Service v{VERSION}")
+    print("Models: Donut (default), IDEFICS2, Phi-3-Vision, InternVL, Qwen2-VL, LayoutLMv3")
     print("OCR: PaddleOCR, Tesseract (fallback)")
     
     # Check available dependencies
@@ -58,9 +58,12 @@ def version_command() -> None:
         print(f"  - {dep}")
     
     print("\nSupported Models:")
-    print("  - Donut (naver-clova-ix/donut-base-finetuned-cord-v2) - MIT license")
-    print("  - IDEFICS2 (HuggingFaceM4/idefics2-8b) - Apache 2.0 license")
-    print("  - LayoutLMv3 (microsoft/layoutlmv3-base) - requires OCR")
+    print("  - Donut (naver-clova-ix/donut-base-finetuned-cord-v2) - MIT license, receipt-optimized")
+    print("  - IDEFICS2 (HuggingFaceM4/idefics2-8b) - Apache 2.0, multi-document support")
+    print("  - Phi-3-Vision (microsoft/Phi-3-vision-128k-instruct) - MIT license, efficient")
+    print("  - InternVL (OpenGVLab/InternVL2-8B) - MIT license, high accuracy")
+    print("  - Qwen2-VL (Qwen/Qwen2-VL-7B-Instruct) - Apache 2.0, strong performance")
+    print("  - LayoutLMv3 (microsoft/layoutlmv3-base) - requires OCR preprocessing")
 
 
 def normalize_boxes(
