@@ -13,7 +13,7 @@ namespace DocumentProcessor.Wasm
 {
     public static class Extensions {
 
-        public static void AddDocumentProcessorWasmAsync(this IServiceCollection services, string clientName = "document-processing")
+        public static IServiceCollection AddDocumentProcessorWasmAsync(this IServiceCollection services, string clientName = "document-processing")
         {
             services.AddHttpClient(clientName, (serves, client) =>
             {
@@ -37,6 +37,7 @@ namespace DocumentProcessor.Wasm
 
             services.AddScoped<IDocumentProcessor, ClientSideDocumentProcessor>();
             services.AddTransient<ClientErrorHandlingHttpMessageHandler>();
+            return services;
         }
     }
 }
