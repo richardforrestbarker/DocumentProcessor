@@ -19,13 +19,34 @@ namespace DocumentProcessor.Clients
         }
 
         /// <summary>
-        /// Gets the status of a job by its ID usigbn the http client to call the server side of this API.
+        /// Gets the status of a job by its ID using the http client to call the server side of this API.
         /// </summary>
         /// <param name="jobId"></param>
         /// <returns></returns>
-        public Task<JobStatus?> GetJobStatusAsync(string jobId)
+        public async Task<JobStatus?> GetJobStatusAsync(string jobId)
         {
-            throw new NotImplementedException();
+            try
+            {
+                var response = await _httpClient.GetAsync($"/api/document/status/{jobId}");
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<JobStatus>();
+                }
+                else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return null;
+                }
+                else
+                {
+                    log.LogWarning("Failed to get job status for {JobId}: {StatusCode}", jobId, response.StatusCode);
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                log.LogError(ex, "Error getting job status for {JobId}", jobId);
+                return null;
+            }
         }
 
         /// <summary>

@@ -297,6 +297,11 @@ def preprocess_command(
     }
 
     try:
+        logger.info(json.dumps({
+            "event": "preprocessing_image",
+            "job_id": effective_job_id,
+            "message": "Applying image preprocessing filters"
+        }))
         processed_image, width, height = preprocessor.preprocess(input_image, page_num=1)
         result["width"] = width
         result["height"] = height
@@ -391,7 +396,18 @@ def ocr_command(
         "raw_ocr_text": ""
     }
     try:
+        logger.info(json.dumps({
+            "event": "resampling_image",
+            "job_id": effective_job_id,
+            "message": "Resampling image to target DPI"
+        }))
         processed_image, width, height = preprocessor.resampleToDpi(input_image, target_dpi)
+        
+        logger.info(json.dumps({
+            "event": "running_ocr_engine",
+            "job_id": effective_job_id,
+            "message": f"Running {ocr_engine} OCR engine"
+        }))
         ocr = create_ocr_engine(ocr_engine, use_gpu=(actual_device == "cuda"))
         words = ocr.detect_and_recognize(processed_image)
         normalized_words = normalize_boxes(words, width, height)
@@ -501,23 +517,36 @@ def inference_command(
         model_predictions = None
         
         try:
+            logger.info(json.dumps({
+                "event": "loading_model",
+                "job_id": effective_job_id,
+                "message": f"Loading {model_type} model"
+            }))
             from ..models import get_model
             model_obj = get_model(model_name_or_path=model, device=actual_device)
             model_obj.load()
             tokens = [w['text'] for w in normalized_words] if normalized_words else []
             boxes = [w['box'] for w in normalized_words] if normalized_words else []
-            model_result = model_obj.predict_from_words(
-                words=tokens,
-                boxes=boxes,
-                image=first_image
-            )
-            if model_result.get("entities"):
-                model_predictions = model_result["entities"]
+            if model_type == "layoutlmv3" and not normalized_words:
+                logger.warning("LayoutLMv3 requires OCR words. Skipping model inference.")
+            else:
                 logger.info(json.dumps({
-                    "event": "model_entities",
+                    "event": "running_inference",
                     "job_id": effective_job_id,
-                    "entities": list(model_predictions.keys())
+                    "message": "Running model inference"
                 }))
+                model_result = model_obj.predict_from_words(
+                    words=tokens,
+                    boxes=boxes,
+                    image=first_image
+                )
+                if model_result.get("entities"):
+                    model_predictions = model_result["entities"]
+                    logger.info(json.dumps({
+                        "event": "model_entities",
+                        "job_id": effective_job_id,
+                        "entities": list(model_predictions.keys())
+                    }))
         except Exception as e:
             logger.warning(json.dumps({
                 "event": "model_error",
@@ -526,6 +555,11 @@ def inference_command(
             }))
         
         if normalized_words:
+            logger.info(json.dumps({
+                "event": "extracting_fields",
+                "job_id": effective_job_id,
+                "message": "Extracting structured fields"
+            }))
             vendor = field_extractor.extract_vendor_name(normalized_words, model_predictions)
             if vendor:
                 result["vendor_name"] = vendor
