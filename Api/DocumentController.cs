@@ -22,7 +22,10 @@ namespace DocumentProcessor.Api.Controllers
         private static readonly HashSet<string> SupportedModels = new(StringComparer.OrdinalIgnoreCase)
         {
             "naver-clova-ix/donut-base-finetuned-cord-v2",
-            "HuggingFaceM4/idefics2-8b"
+            "HuggingFaceM4/idefics2-8b",
+            "phi-3-vision",
+            "OpenGVLab/InternVL",
+            "Qwen/Qwen2-VL-7B-Instruct"
         };
 
         public DocumentController(
@@ -130,7 +133,7 @@ namespace DocumentProcessor.Api.Controllers
 
                 if (!string.IsNullOrEmpty(request.Model) && !SupportedModels.Contains(request.Model))
                 {
-                    return BadRequest(new { error = "Unsupported model. Supported models are: naver-clova-ix/donut-base-finetuned-cord-v2, HuggingFaceM4/idefics2-8b" });
+                    return BadRequest(new { error = "Unsupported model. Supported models are: naver-clova-ix/donut-base-finetuned-cord-v2, HuggingFaceM4/idefics2-8b, phi-3-vision, OpenGVLab/InternVL, Qwen/Qwen2-VL-7B-Instruct" });
                 }
 
                 _logger.LogInformation("Starting inference for job {JobId}", request.JobId);

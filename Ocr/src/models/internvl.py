@@ -96,21 +96,51 @@ class InternVLModel(BaseModel):
         
         try:
             import torch
-            from transformers import AutoModel, AutoTokenizer
+            from transformers import AutoModel, AutoTokenizer, AutoConfig
+            from . import __init__ as models_init  # for get_hf_model_type
+            
+            # Resolve model_type from central mapping (kept internal)
+            try:
+                from . import get_hf_model_type
+            except Exception:
+                # Fallback import path if module resolution differs
+                from .__init__ import get_hf_model_type
+            model_type = get_hf_model_type(self.model_name_or_path)
+            config = None
+            if model_type:
+                logger.info(f"Resolved Hugging Face model_type '{model_type}' for {self.model_name_or_path}")
+                try:
+                    config = AutoConfig.from_pretrained(self.model_name_or_path)
+                    # Inject model_type if missing
+                    if not getattr(config, "model_type", None):
+                        config.model_type = model_type
+                except Exception:
+                    # If loading config fails, proceed without explicit config and rely on trust_remote_code
+                    config = None
             
             # Load tokenizer
             logger.info(f"Loading tokenizer from {self.model_name_or_path}")
+            tokenizer_kwargs = {"trust_remote_code": True}
+            # Only pass config if available
+            if config is not None:
+                tokenizer_kwargs["config"] = config
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.model_name_or_path,
-                trust_remote_code=True
+                **tokenizer_kwargs
             )
             
             # Load model
             logger.info(f"Loading model from {self.model_name_or_path}")
+            model_kwargs = {
+                "trust_remote_code": True,
+                "torch_dtype": torch.float16 if self.device != "cpu" else torch.float32,
+            }
+            # Only pass config if available
+            if config is not None:
+                model_kwargs["config"] = config
             self.model = AutoModel.from_pretrained(
                 self.model_name_or_path,
-                trust_remote_code=True,
-                torch_dtype=torch.float16 if self.device != "cpu" else torch.float32,
+                **model_kwargs
             )
             
             # Move to device
@@ -399,7 +429,7 @@ class InternVLModel(BaseModel):
             boxes: Ignored (kept for API compatibility)
             image: PIL Image or numpy array
             
-        Returns:
-            Dictionary with predictions and extracted entities
+            Returns:
+                Dictionary with predictions and extracted entities
         """
         return self.predict([], [], image)

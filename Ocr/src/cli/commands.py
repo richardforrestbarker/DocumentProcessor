@@ -479,12 +479,18 @@ def inference_command(
     supported_models = {
         "naver-clova-ix/donut-base-finetuned-cord-v2",
         "HuggingFaceM4/idefics2-8b",
+        "phi-3-vision",
+        "OpenGVLab/InternVL",
+        "Qwen/Qwen2-VL-7B-Instruct",
     }
     if model not in supported_models:
         err = {
             "event": "model_error",
             "job_id": job_id,
-            "error": f"Unsupported model '{model}'. Supported models are: {', '.join(sorted(supported_models))}"
+            "error": (
+                f"Unsupported model '{model}'. Supported models are: "
+                + ", ".join(sorted(supported_models))
+            )
         }
         logger.warning(json.dumps(err))
         return {
@@ -546,27 +552,26 @@ def inference_command(
             model_obj.load()
             tokens = [w['text'] for w in normalized_words] if normalized_words else []
             boxes = [w['box'] for w in normalized_words] if normalized_words else []
-            # Check if words are missing for models that need them
+            # Always run model inference; some models can operate without OCR words
             if not normalized_words:
-                logger.warning("No OCR words available. Skipping model inference.")
-            else:
+                logger.warning("No OCR words available. Proceeding with image-only inference.")
+            logger.info(json.dumps({
+                "event": "running_inference",
+                "job_id": effective_job_id,
+                "message": "Running model inference"
+            }))
+            model_result = model_obj.predict_from_words(
+                words=tokens,
+                boxes=boxes,
+                image=first_image
+            )
+            if model_result.get("entities"):
+                model_predictions = model_result["entities"]
                 logger.info(json.dumps({
-                    "event": "running_inference",
+                    "event": "model_entities",
                     "job_id": effective_job_id,
-                    "message": "Running model inference"
+                    "entities": list(model_predictions.keys())
                 }))
-                model_result = model_obj.predict_from_words(
-                    words=tokens,
-                    boxes=boxes,
-                    image=first_image
-                )
-                if model_result.get("entities"):
-                    model_predictions = model_result["entities"]
-                    logger.info(json.dumps({
-                        "event": "model_entities",
-                        "job_id": effective_job_id,
-                        "entities": list(model_predictions.keys())
-                    }))
         except Exception as e:
             logger.warning(json.dumps({
                 "event": "model_error",

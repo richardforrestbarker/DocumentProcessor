@@ -7,6 +7,14 @@ Handles command-line argument parsing for the Receipt OCR CLI.
 import argparse
 from typing import Tuple
 
+SUPPORTED_MODELS = [
+    "naver-clova-ix/donut-base-finetuned-cord-v2",
+    "HuggingFaceM4/idefics2-8b",
+    "phi-3-vision",
+    "OpenGVLab/InternVL",
+    "Qwen/Qwen2-VL-7B-Instruct",
+]
+
 
 def _add_device_argument(parser: argparse.ArgumentParser) -> None:
     """Add common device argument to a parser."""
@@ -119,7 +127,10 @@ def _add_inference_arguments(parser: argparse.ArgumentParser) -> None:
         "--model",
         "-m",
         default="naver-clova-ix/donut-base-finetuned-cord-v2",
-        help="Model name or path (default: naver-clova-ix/donut-base-finetuned-cord-v2)"
+        help=(
+            "Model name or path (default: naver-clova-ix/donut-base-finetuned-cord-v2). "
+            "Supported models include: " + ", ".join(SUPPORTED_MODELS)
+        )
     )
     _add_device_argument(parser)
 
@@ -157,7 +168,10 @@ def create_argument_parser() -> argparse.ArgumentParser:
         "--model",
         "-m",
         default="naver-clova-ix/donut-base-finetuned-cord-v2",
-        help="Model name or path (default: naver-clova-ix/donut-base-finetuned-cord-v2)"
+        help=(
+            "Model name or path (default: naver-clova-ix/donut-base-finetuned-cord-v2). "
+            "Supported models include: " + ", ".join(SUPPORTED_MODELS)
+        )
     )
     process_parser.add_argument(
         "--ocr-engine",
