@@ -188,7 +188,7 @@ def create_argument_parser() -> argparse.ArgumentParser:
     process_parser.add_argument(
         "--skip-model",
         action="store_true",
-        help="Skip LayoutLM model inference (use only heuristic extraction)"
+        help="Skip model inference (use only heuristic extraction)"
     )
     _add_logging_arguments(process_parser)
     process_parser.add_argument(

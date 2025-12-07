@@ -223,15 +223,15 @@ class TestTesseractIntegration:
             assert box[1] <= box[3]  # y0 <= y1
 
 
-class TestLayoutLMIntegration:
-    """Integration tests using actual LayoutLMv3."""
+class TestModelIntegration:
+    """Integration tests using actual vision-language models."""
 
     @pytest.mark.skipif(not HAS_TRANSFORMERS, reason="Transformers not installed")
     @pytest.mark.skipif(not HAS_PADDLEOCR and not HAS_TESSERACT, reason="No OCR engine available")
     @pytest.mark.slow
-    def test_layoutlm_loads_and_runs(self, realistic_receipt_image):
-        """Test that LayoutLMv3 actually loads and runs inference."""
-        from cli import run_layoutlm_inference, load_image, run_ocr, normalize_boxes
+    def test_model_loads_and_runs(self, realistic_receipt_image):
+        """Test that vision-language models load and run inference."""
+        from cli import run_model_inference_standalone, load_image, run_ocr, normalize_boxes
         
         image = load_image(realistic_receipt_image)
         
@@ -246,11 +246,11 @@ class TestLayoutLMIntegration:
         h, w = image.shape[:2]
         normalized_words = normalize_boxes(words, w, h)
         
-        # Run LayoutLM inference
-        result = run_layoutlm_inference(
+        # Run model inference
+        result = run_model_inference_standalone(
             image,
             normalized_words,
-            model_name="microsoft/layoutlmv3-base",
+            model_name="naver-clova-ix/donut-base-finetuned-cord-v2",
             device="cpu"
         )
         
@@ -260,17 +260,17 @@ class TestLayoutLMIntegration:
 
     @pytest.mark.skipif(not HAS_TRANSFORMERS, reason="Transformers not installed")
     @pytest.mark.slow
-    def test_layoutlm_handles_empty_words(self, realistic_receipt_image):
-        """Test that LayoutLMv3 handles empty word list gracefully."""
-        from cli import run_layoutlm_inference, load_image
+    def test_model_handles_empty_words(self, realistic_receipt_image):
+        """Test that vision-language models handle empty word list gracefully."""
+        from cli import run_model_inference_standalone, load_image
         
         image = load_image(realistic_receipt_image)
         
         # Empty words list
-        result = run_layoutlm_inference(
+        result = run_model_inference_standalone(
             image,
             [],
-            model_name="microsoft/layoutlmv3-base",
+            model_name="naver-clova-ix/donut-base-finetuned-cord-v2",
             device="cpu"
         )
         

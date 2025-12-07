@@ -73,7 +73,7 @@ def normalize_boxes(
     scale: int = 1000
 ) -> List[Dict[str, Any]]:
     """
-    Normalize bounding boxes to 0-1000 scale for LayoutLM.
+    Normalize bounding boxes to 0-1000 scale.
     
     Args:
         words: List of words with boxes
@@ -498,7 +498,7 @@ def inference_command(
 
     actual_device = get_device(device)
     from ..postprocessing.field_extractor import FieldExtractor
-    from ..models import get_model, LayoutLMv3Model
+    from ..models import get_model
     
     with open(ocr_result_path, 'r') as f:
         ocr_result = json.load(f)
@@ -546,9 +546,9 @@ def inference_command(
             model_obj.load()
             tokens = [w['text'] for w in normalized_words] if normalized_words else []
             boxes = [w['box'] for w in normalized_words] if normalized_words else []
-            # If LayoutLMv3 and words are missing, warn user and skip model inference
-            if isinstance(model_obj, LayoutLMv3Model) and not normalized_words:
-                logger.warning("LayoutLMv3 requires OCR words. Skipping model inference.")
+            # Check if words are missing for models that need them
+            if not normalized_words:
+                logger.warning("No OCR words available. Skipping model inference.")
             else:
                 logger.info(json.dumps({
                     "event": "running_inference",

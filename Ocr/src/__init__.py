@@ -6,12 +6,16 @@ Python package for receipt OCR and structured data extraction.
 
 __version__ = "0.1.0"
 __author__ = "Bardcode Team"
-__description__ = "Receipt OCR with PaddleOCR and LayoutLMv3"
+__description__ = "Document OCR with PaddleOCR and vision-language models"
 
 from .receipt_processor import ReceiptProcessor
-from .models import LayoutLMv3Model
+from .models import DonutModel, IDEFICS2Model, Phi3VisionModel, InternVLModel, Qwen2VLModel
 
 __all__ = [
     "ReceiptProcessor",
-    "LayoutLMv3Model",
+    "DonutModel",
+    "IDEFICS2Model",
+    "Phi3VisionModel",
+    "InternVLModel",
+    "Qwen2VLModel",
 ]
