@@ -336,8 +336,9 @@ class Phi3VisionModel(BaseModel):
         if value is None:
             return None
         import re
-        cleaned = re.sub(r'[^\d.]', '', str(value))
-        return cleaned if cleaned else None
+        # Extract valid decimal number (allows only one decimal point)
+        match = re.search(r'(\d+\.?\d*)', str(value))
+        return match.group(1) if match else None
     
     def _parse_int(self, value: Any) -> int:
         """Parse integer value."""

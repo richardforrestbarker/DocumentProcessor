@@ -211,9 +211,17 @@ class InternVLModel(BaseModel):
                 "predictions": [],
                 "confidences": []
             }
+        except AttributeError as e:
+            # Model doesn't support chat interface
+            logger.error(f"InternVL model does not support chat interface: {e}")
+            raise
+        except RuntimeError as e:
+            # CUDA or memory errors
+            logger.error(f"Runtime error during InternVL inference: {e}")
+            raise
         except Exception as e:
-            logger.error(f"Error during InternVL inference: {e}")
-            # Return empty entities on error
+            # Log unexpected errors but provide fallback
+            logger.warning(f"Unexpected error during InternVL inference: {e}")
             return {
                 "raw_output": "",
                 "entities": self._get_empty_entities(),
@@ -318,8 +326,9 @@ class InternVLModel(BaseModel):
         if value is None:
             return None
         import re
-        cleaned = re.sub(r'[^\d.]', '', str(value))
-        return cleaned if cleaned else None
+        # Extract valid decimal number (allows only one decimal point)
+        match = re.search(r'(\d+\.?\d*)', str(value))
+        return match.group(1) if match else None
     
     def _parse_int(self, value: Any) -> int:
         """Parse integer value."""
