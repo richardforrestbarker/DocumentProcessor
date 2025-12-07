@@ -46,6 +46,12 @@
     <Compile Include="tests\test_cli_integration.py" />
     <Compile Include="tests\test_cli_unit.py" />
     <Compile Include="tests\__init__.py" />
+    <Content Include="tests\test-receipts\receipt-1_ocr_result.json" />
+    <Content Include="tests\test-receipts\receipt-2_ocr_result.json" />
+    <Content Include="tests\test-receipts\receipt-3_ocr_result.json" />
+    <Content Include="tests\test-receipts\receipt-1.jpg" />
+    <Content Include="tests\test-receipts\receipt-2.jpg" />
+    <Content Include="tests\test-receipts\receipt-3.jpg" />
     <Folder Include="scripts\" />
     <Folder Include="src\" />
     <Folder Include="src\models\" />
@@ -70,6 +76,7 @@
     <Content Include="scripts\grayscale.sh" />
     <Content Include="scripts\preprocess_all.sh" />
     <Content Include="scripts\remove_background.sh" />
+    <Folder Include="tests\test-receipts\" />
   </ItemGroup>
   <!-- Import Python Tools targets only when available (Visual Studio only) -->
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets')" />

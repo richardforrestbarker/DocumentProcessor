@@ -66,7 +66,7 @@ class InternVLModel(BaseModel):
     
     def __init__(
         self,
-        model_name_or_path: str = "OpenGVLab/InternVL2-8B",
+        model_name_or_path: str = "OpenGVLab/InternVL2-4B",
         device: str = "cpu",
         max_new_tokens: int = 512
     ):
