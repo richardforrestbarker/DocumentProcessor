@@ -140,6 +140,9 @@ class ReceiptProcessor:
             "job_id": job_id or f"job-{hash(tuple(image_paths)) % 100000:05d}",
             "status": "done",
             "pages": [],
+            # Document classification
+            "document_type": None,
+            # Common fields
             "vendor_name": None,
             "merchant_address": None,
             "date": None,
@@ -147,7 +150,28 @@ class ReceiptProcessor:
             "subtotal": None,
             "tax_amount": None,
             "currency": None,
-            "line_items": []
+            "line_items": [],
+            # Invoice-specific fields
+            "invoice_number": None,
+            "due_date": None,
+            "payment_terms": None,
+            "customer_name": None,
+            "customer_address": None,
+            "po_number": None,
+            # Bill-specific fields
+            "account_number": None,
+            "billing_period": None,
+            "previous_balance": None,
+            "current_charges": None,
+            "amount_due": None,
+            # Receipt-specific fields
+            "payment_method": None,
+            "cashier_name": None,
+            "register_number": None,
+            # General fields
+            "discount": None,
+            "shipping": None,
+            "notes": None
         }
         
         all_words = []
@@ -211,8 +235,17 @@ class ReceiptProcessor:
                 fields = self.postprocess_results(model_predictions, all_words)
                 
                 # Update result with extracted fields
-                for field_name in ["vendor_name", "date", "total_amount", "subtotal", 
-                                   "tax_amount", "currency", "merchant_address"]:
+                all_field_names = [
+                    "document_type", "vendor_name", "date", "total_amount", "subtotal", 
+                    "tax_amount", "currency", "merchant_address",
+                    "invoice_number", "due_date", "payment_terms", "customer_name", 
+                    "customer_address", "po_number",
+                    "account_number", "billing_period", "previous_balance", 
+                    "current_charges", "amount_due",
+                    "payment_method", "cashier_name", "register_number",
+                    "discount", "shipping", "notes"
+                ]
+                for field_name in all_field_names:
                     if fields.get(field_name):
                         result[field_name] = fields[field_name]
                 
@@ -381,36 +414,84 @@ class ReceiptProcessor:
             entities = predictions["entities"]
             
             result = {
+                # Document classification
+                "document_type": entities.get("document_type"),
+                # Common fields
                 "vendor_name": entities.get("vendor_name"),
                 "date": entities.get("date"),
                 "total_amount": entities.get("total_amount"),
                 "subtotal": entities.get("subtotal"),
                 "tax_amount": entities.get("tax_amount"),
-                "currency": None,
-                "merchant_address": None,
-                "line_items": entities.get("line_items", [])
+                "currency": entities.get("currency"),
+                "merchant_address": entities.get("merchant_address"),
+                "line_items": entities.get("line_items", []),
+                # Invoice-specific
+                "invoice_number": entities.get("invoice_number"),
+                "due_date": entities.get("due_date"),
+                "payment_terms": entities.get("payment_terms"),
+                "customer_name": entities.get("customer_name"),
+                "customer_address": entities.get("customer_address"),
+                "po_number": entities.get("po_number"),
+                # Bill-specific
+                "account_number": entities.get("account_number"),
+                "billing_period": entities.get("billing_period"),
+                "previous_balance": entities.get("previous_balance"),
+                "current_charges": entities.get("current_charges"),
+                "amount_due": entities.get("amount_due"),
+                # Receipt-specific
+                "payment_method": entities.get("payment_method"),
+                "cashier_name": entities.get("cashier_name"),
+                "register_number": entities.get("register_number"),
+                # General
+                "discount": entities.get("discount"),
+                "shipping": entities.get("shipping"),
+                "notes": entities.get("notes")
             }
             
-            # Fill in any missing fields with heuristics
-            for field in ["vendor_name", "date", "total_amount", "subtotal", "tax_amount"]:
-                if result[field] is None:
-                    if field == "vendor_name":
-                        result[field] = field_extractor.extract_vendor_name(words)
-                    elif field == "total_amount":
-                        result[field] = field_extractor.extract_total(words)
+            # Fill in any missing critical fields with heuristics
+            if result["document_type"] is None:
+                result["document_type"] = field_extractor.classify_document_type(words)
+            if result["vendor_name"] is None:
+                result["vendor_name"] = field_extractor.extract_vendor_name(words)
+            if result["total_amount"] is None:
+                result["total_amount"] = field_extractor.extract_total(words)
             
             return result
         
         # Fall back to heuristic extraction
         result = {
+            # Document classification
+            "document_type": field_extractor.classify_document_type(words),
+            # Common fields
             "vendor_name": field_extractor.extract_vendor_name(words),
             "date": self._extract_date_heuristic(words),
             "total_amount": field_extractor.extract_total(words),
             "subtotal": self._extract_subtotal_heuristic(words),
             "tax_amount": self._extract_tax_heuristic(words),
             "currency": self._detect_currency(words),
-            "merchant_address": None,
-            "line_items": field_extractor.extract_line_items(words)
+            "merchant_address": field_extractor.extract_address(words),
+            "line_items": field_extractor.extract_line_items(words),
+            # Invoice-specific
+            "invoice_number": field_extractor.extract_invoice_number(words),
+            "due_date": field_extractor.extract_due_date(words),
+            "payment_terms": field_extractor.extract_payment_terms(words),
+            "customer_name": field_extractor.extract_customer_name(words),
+            "customer_address": field_extractor.extract_customer_address(words),
+            "po_number": field_extractor.extract_po_number(words),
+            # Bill-specific
+            "account_number": field_extractor.extract_account_number(words),
+            "billing_period": field_extractor.extract_billing_period(words),
+            "previous_balance": field_extractor.extract_previous_balance(words),
+            "current_charges": field_extractor.extract_current_charges(words),
+            "amount_due": field_extractor.extract_amount_due(words),
+            # Receipt-specific
+            "payment_method": field_extractor.extract_payment_method(words),
+            "cashier_name": field_extractor.extract_cashier_name(words),
+            "register_number": field_extractor.extract_register_number(words),
+            # General
+            "discount": field_extractor.extract_discount(words),
+            "shipping": field_extractor.extract_shipping(words),
+            "notes": None
         }
         
         return result

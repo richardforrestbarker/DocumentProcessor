@@ -25,30 +25,52 @@ FALLBACK_CONFIDENCE = 0.5
 # Prompt delimiter for extracting generated response
 PROMPT_DELIMITER = "Now analyze this receipt:"
 
-# Prompt template for receipt extraction
-RECEIPT_EXTRACTION_PROMPT = """You are analyzing a receipt image. Extract the following information in JSON format:
-- vendor_name: The store or business name
-- date: The date of the transaction
-- total_amount: The total amount paid
+# Prompt template for document extraction
+RECEIPT_EXTRACTION_PROMPT = """You are analyzing a financial document image. First identify the document type (receipt, invoice, bill, or other financial document), then extract relevant information in JSON format.
+
+For all documents, extract:
+- document_type: One of "receipt", "invoice", "bill", or "financial_document"
+- vendor_name: The business/company name
+- date: The transaction/document date
+- total_amount: The total amount
 - subtotal: The subtotal before tax (if visible)
 - tax_amount: The tax amount (if visible)
 - line_items: List of items with description, quantity, unit_price, and line_total
+
+For invoices, also extract:
+- invoice_number: The invoice number
+- due_date: Payment due date
+- payment_terms: Payment terms (e.g., "Net 30")
+- customer_name: Customer or "Bill To" name
+- po_number: Purchase order number (if visible)
+
+For bills, also extract:
+- account_number: Account number
+- billing_period: Billing period dates
+- amount_due: Amount due
+
+For receipts, also extract:
+- payment_method: Payment method used (cash, credit, etc.)
 
 Return only valid JSON, no additional text.
 
 Example output:
 {
-  "vendor_name": "Store Name",
+  "document_type": "invoice",
+  "vendor_name": "Company Name",
   "date": "2024-01-15",
-  "total_amount": "45.99",
-  "subtotal": "42.00",
-  "tax_amount": "3.99",
+  "invoice_number": "INV-12345",
+  "due_date": "2024-02-15",
+  "customer_name": "Client Name",
+  "total_amount": "1250.00",
+  "subtotal": "1150.00",
+  "tax_amount": "100.00",
   "line_items": [
-    {"description": "Product 1", "quantity": 2, "unit_price": "10.50", "line_total": "21.00"}
+    {"description": "Service 1", "quantity": 10, "unit_price": "100.00", "line_total": "1000.00"}
   ]
 }
 
-Now analyze this receipt:"""
+Now analyze this document:"""
 
 
 class IDEFICS2Model(BaseModel):
@@ -273,12 +295,22 @@ class IDEFICS2Model(BaseModel):
         import re
         
         entities = {
+            "document_type": None,
             "vendor_name": None,
             "date": None,
             "total_amount": None,
             "subtotal": None,
             "tax_amount": None,
-            "line_items": []
+            "line_items": [],
+            "invoice_number": None,
+            "due_date": None,
+            "payment_terms": None,
+            "customer_name": None,
+            "po_number": None,
+            "account_number": None,
+            "billing_period": None,
+            "amount_due": None,
+            "payment_method": None
         }
         
         try:
@@ -288,41 +320,32 @@ class IDEFICS2Model(BaseModel):
                 json_str = json_match.group()
                 parsed = json.loads(json_str)
                 
-                # Extract fields
-                if "vendor_name" in parsed and parsed["vendor_name"]:
-                    entities["vendor_name"] = {
-                        "value": str(parsed["vendor_name"]),
-                        "confidence": 0.8,
-                        "box": None
-                    }
+                # Extract all possible fields
+                field_mappings = {
+                    "document_type": ("document_type", lambda x: str(x)),
+                    "vendor_name": ("vendor_name", lambda x: str(x)),
+                    "date": ("date", lambda x: str(x)),
+                    "total_amount": ("total_amount", self._clean_amount),
+                    "subtotal": ("subtotal", self._clean_amount),
+                    "tax_amount": ("tax_amount", self._clean_amount),
+                    "invoice_number": ("invoice_number", lambda x: str(x)),
+                    "due_date": ("due_date", lambda x: str(x)),
+                    "payment_terms": ("payment_terms", lambda x: str(x)),
+                    "customer_name": ("customer_name", lambda x: str(x)),
+                    "po_number": ("po_number", lambda x: str(x)),
+                    "account_number": ("account_number", lambda x: str(x)),
+                    "billing_period": ("billing_period", lambda x: str(x)),
+                    "amount_due": ("amount_due", self._clean_amount),
+                    "payment_method": ("payment_method", lambda x: str(x))
+                }
                 
-                if "date" in parsed and parsed["date"]:
-                    entities["date"] = {
-                        "value": str(parsed["date"]),
-                        "confidence": 0.8,
-                        "box": None
-                    }
-                
-                if "total_amount" in parsed and parsed["total_amount"]:
-                    entities["total_amount"] = {
-                        "value": self._clean_amount(parsed["total_amount"]),
-                        "confidence": 0.8,
-                        "box": None
-                    }
-                
-                if "subtotal" in parsed and parsed["subtotal"]:
-                    entities["subtotal"] = {
-                        "value": self._clean_amount(parsed["subtotal"]),
-                        "confidence": 0.8,
-                        "box": None
-                    }
-                
-                if "tax_amount" in parsed and parsed["tax_amount"]:
-                    entities["tax_amount"] = {
-                        "value": self._clean_amount(parsed["tax_amount"]),
-                        "confidence": 0.8,
-                        "box": None
-                    }
+                for field_key, (entity_key, transform) in field_mappings.items():
+                    if field_key in parsed and parsed[field_key]:
+                        entities[entity_key] = {
+                            "value": transform(parsed[field_key]),
+                            "confidence": 0.8,
+                            "box": None
+                        }
                 
                 if "line_items" in parsed and isinstance(parsed["line_items"], list):
                     for item in parsed["line_items"]:

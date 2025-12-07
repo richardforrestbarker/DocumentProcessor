@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class FieldExtractor:
     """
-    Extracts and validates receipt fields from OCR and model predictions.
+    Extracts and validates fields from various financial documents (receipts, invoices, bills).
     """
     
     def __init__(self, min_confidence: float = 0.5):
@@ -37,6 +37,9 @@ class FieldExtractor:
             ],
             'phone': re.compile(r'(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})'),
             'email': re.compile(r'([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})'),
+            'invoice_number': re.compile(r'(?:invoice|inv|#)\s*[:\-]?\s*([A-Z0-9\-]+)', re.IGNORECASE),
+            'po_number': re.compile(r'(?:po|purchase\s+order)\s*[:\-]?\s*([A-Z0-9\-]+)', re.IGNORECASE),
+            'account_number': re.compile(r'(?:account|acct)\s*[:\-]?\s*([A-Z0-9\-]+)', re.IGNORECASE),
         }
     
     def extract_amount(self, text: str) -> Optional[Decimal]:
@@ -385,3 +388,367 @@ class FieldExtractor:
                     )
         
         return consolidated
+    
+    def classify_document_type(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Classify document type based on keywords and patterns.
+        
+        Args:
+            words: List of OCR words
+            
+        Returns:
+            Dictionary with document type, confidence, and box
+        """
+        if not words:
+            return None
+        
+        full_text = ' '.join(w['text'] for w in words).lower()
+        
+        # Keywords for different document types
+        invoice_keywords = ['invoice', 'bill to', 'ship to', 'payment terms', 'due date', 'po number']
+        bill_keywords = ['billing period', 'account number', 'previous balance', 'current charges', 'amount due', 'statement']
+        receipt_keywords = ['receipt', 'thank you', 'cashier', 'register', 'transaction', 'tender']
+        
+        # Count keyword matches
+        invoice_score = sum(1 for kw in invoice_keywords if kw in full_text)
+        bill_score = sum(1 for kw in bill_keywords if kw in full_text)
+        receipt_score = sum(1 for kw in receipt_keywords if kw in full_text)
+        
+        # Determine document type
+        doc_type = None
+        confidence = 0.5
+        
+        if invoice_score > bill_score and invoice_score > receipt_score and invoice_score > 0:
+            doc_type = "invoice"
+            confidence = min(0.9, 0.5 + (invoice_score * 0.1))
+        elif bill_score > receipt_score and bill_score > 0:
+            doc_type = "bill"
+            confidence = min(0.9, 0.5 + (bill_score * 0.1))
+        elif receipt_score > 0:
+            doc_type = "receipt"
+            confidence = min(0.9, 0.5 + (receipt_score * 0.1))
+        else:
+            # Default to generic financial document
+            doc_type = "financial_document"
+            confidence = 0.4
+        
+        return {
+            'value': doc_type,
+            'confidence': confidence,
+            'box': None
+        }
+    
+    def extract_invoice_number(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract invoice number from document."""
+        full_text = ' '.join(w['text'] for w in words)
+        match = self.patterns['invoice_number'].search(full_text)
+        
+        if match:
+            invoice_num = match.group(1)
+            for w in words:
+                if invoice_num in w['text']:
+                    return {
+                        'value': invoice_num,
+                        'confidence': w['confidence'],
+                        'box': self._make_box(w['box'])
+                    }
+        return None
+    
+    def extract_due_date(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract due date from document."""
+        for i, w in enumerate(words):
+            if 'due' in w['text'].lower():
+                # Look for date in next few words
+                for j in range(i, min(i + 5, len(words))):
+                    date_val = self.extract_date(' '.join(w['text'] for w in words[j:min(j+3, len(words))]))
+                    if date_val:
+                        return {
+                            'value': date_val,
+                            'confidence': words[j]['confidence'],
+                            'box': self._make_box(words[j]['box'])
+                        }
+        return None
+    
+    def extract_payment_terms(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract payment terms from document."""
+        full_text = ' '.join(w['text'] for w in words)
+        patterns = [
+            re.compile(r'(?:net|terms?)\s*(\d+)', re.IGNORECASE),
+            re.compile(r'(?:payment\s+terms?)[:\s]*([^,\n]+)', re.IGNORECASE)
+        ]
+        
+        for pattern in patterns:
+            match = pattern.search(full_text)
+            if match:
+                terms = match.group(1).strip()
+                for w in words:
+                    if terms in w['text'] or w['text'] in terms:
+                        return {
+                            'value': terms,
+                            'confidence': w['confidence'],
+                            'box': self._make_box(w['box'])
+                        }
+        return None
+    
+    def extract_customer_name(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract customer name from invoice."""
+        for i, w in enumerate(words):
+            text_lower = w['text'].lower()
+            if 'bill to' in text_lower or 'customer' in text_lower:
+                # Take next 2-3 words as customer name
+                if i + 1 < len(words):
+                    customer_words = words[i+1:min(i+4, len(words))]
+                    customer_name = ' '.join(w['text'] for w in customer_words)
+                    avg_conf = sum(w['confidence'] for w in customer_words) / len(customer_words)
+                    return {
+                        'value': customer_name,
+                        'confidence': avg_conf,
+                        'box': self._combine_boxes([w['box'] for w in customer_words])
+                    }
+        return None
+    
+    def extract_customer_address(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract customer address from invoice."""
+        # This is similar to merchant address but looks after "bill to" keyword
+        for i, w in enumerate(words):
+            if 'bill to' in w['text'].lower() and i + 1 < len(words):
+                # Look for address in next few lines
+                address_words = words[i+1:min(i+10, len(words))]
+                address_text = ' '.join(w['text'] for w in address_words[:5])
+                avg_conf = sum(w['confidence'] for w in address_words[:5]) / min(5, len(address_words))
+                return {
+                    'value': address_text,
+                    'confidence': avg_conf,
+                    'box': self._combine_boxes([w['box'] for w in address_words[:5]])
+                }
+        return None
+    
+    def extract_po_number(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract purchase order number."""
+        full_text = ' '.join(w['text'] for w in words)
+        match = self.patterns['po_number'].search(full_text)
+        
+        if match:
+            po_num = match.group(1)
+            for w in words:
+                if po_num in w['text']:
+                    return {
+                        'value': po_num,
+                        'confidence': w['confidence'],
+                        'box': self._make_box(w['box'])
+                    }
+        return None
+    
+    def extract_account_number(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract account number from bill."""
+        full_text = ' '.join(w['text'] for w in words)
+        match = self.patterns['account_number'].search(full_text)
+        
+        if match:
+            acct_num = match.group(1)
+            for w in words:
+                if acct_num in w['text']:
+                    return {
+                        'value': acct_num,
+                        'confidence': w['confidence'],
+                        'box': self._make_box(w['box'])
+                    }
+        return None
+    
+    def extract_billing_period(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract billing period from bill."""
+        for i, w in enumerate(words):
+            if 'billing period' in w['text'].lower() or 'statement period' in w['text'].lower():
+                # Look for dates in next few words
+                for j in range(i, min(i + 10, len(words))):
+                    text_chunk = ' '.join(w['text'] for w in words[j:min(j+8, len(words))])
+                    # Look for date range pattern
+                    match = re.search(r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s*(?:to|-|through)\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})', text_chunk, re.IGNORECASE)
+                    if match:
+                        return {
+                            'value': f"{match.group(1)} to {match.group(2)}",
+                            'confidence': words[j]['confidence'],
+                            'box': self._make_box(words[j]['box'])
+                        }
+        return None
+    
+    def extract_previous_balance(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract previous balance from bill."""
+        return self._extract_amount_near_keyword(words, ['previous balance', 'prev balance', 'balance forward'])
+    
+    def extract_current_charges(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract current charges from bill."""
+        return self._extract_amount_near_keyword(words, ['current charges', 'new charges', 'current amount'])
+    
+    def extract_amount_due(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract amount due from bill."""
+        return self._extract_amount_near_keyword(words, ['amount due', 'total due', 'balance due'])
+    
+    def extract_payment_method(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract payment method from receipt."""
+        payment_types = ['cash', 'credit', 'debit', 'visa', 'mastercard', 'amex', 'discover', 'check']
+        for w in words:
+            text_lower = w['text'].lower()
+            for ptype in payment_types:
+                if ptype in text_lower:
+                    return {
+                        'value': ptype.upper(),
+                        'confidence': w['confidence'],
+                        'box': self._make_box(w['box'])
+                    }
+        return None
+    
+    def extract_cashier_name(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract cashier name from receipt."""
+        for i, w in enumerate(words):
+            if 'cashier' in w['text'].lower() or 'served by' in w['text'].lower():
+                if i + 1 < len(words):
+                    return {
+                        'value': words[i+1]['text'],
+                        'confidence': words[i+1]['confidence'],
+                        'box': self._make_box(words[i+1]['box'])
+                    }
+        return None
+    
+    def extract_register_number(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract register/terminal number from receipt."""
+        for i, w in enumerate(words):
+            text_lower = w['text'].lower()
+            if 'register' in text_lower or 'terminal' in text_lower or 'pos' in text_lower:
+                # Look for number in same or next word
+                for j in range(i, min(i + 3, len(words))):
+                    match = re.search(r'(\d+)', words[j]['text'])
+                    if match:
+                        return {
+                            'value': match.group(1),
+                            'confidence': words[j]['confidence'],
+                            'box': self._make_box(words[j]['box'])
+                        }
+        return None
+    
+    def extract_discount(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract discount amount."""
+        return self._extract_amount_near_keyword(words, ['discount', 'savings', 'coupon'])
+    
+    def extract_shipping(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract shipping amount."""
+        return self._extract_amount_near_keyword(words, ['shipping', 'freight', 'delivery'])
+    
+    def extract_address(
+        self,
+        words: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Extract merchant/vendor address from document."""
+        # Look for address pattern near top of document (after vendor name)
+        # Skip first 3 words (likely vendor name)
+        if len(words) < 5:
+            return None
+        
+        # Look for address indicators
+        address_keywords = ['street', 'st', 'ave', 'avenue', 'rd', 'road', 'blvd', 'boulevard', 'suite', 'ste']
+        for i, w in enumerate(words[3:20], start=3):  # Check first 20 words after vendor
+            text_lower = w['text'].lower()
+            if any(kw in text_lower for kw in address_keywords):
+                # Take surrounding words as address
+                start = max(0, i - 2)
+                end = min(len(words), i + 5)
+                address_words = words[start:end]
+                address_text = ' '.join(w['text'] for w in address_words)
+                avg_conf = sum(w['confidence'] for w in address_words) / len(address_words)
+                return {
+                    'value': address_text,
+                    'confidence': avg_conf,
+                    'box': self._combine_boxes([w['box'] for w in address_words])
+                }
+        return None
+    
+    def _extract_amount_near_keyword(
+        self,
+        words: List[Dict[str, Any]],
+        keywords: List[str]
+    ) -> Optional[Dict[str, Any]]:
+        """Helper to extract amount near specific keywords."""
+        for i, w in enumerate(words):
+            text_lower = w['text'].lower()
+            if any(kw in text_lower for kw in keywords):
+                # Look for amount in next few words
+                for j in range(max(0, i-2), min(i + 5, len(words))):
+                    amount = self.extract_amount(words[j]['text'])
+                    if amount:
+                        return {
+                            'value': str(amount),
+                            'confidence': words[j]['confidence'],
+                            'box': self._make_box(words[j]['box'])
+                        }
+        return None
+    
+    def _make_box(self, box: List[int]) -> Dict[str, int]:
+        """Convert box list to dictionary format."""
+        return {
+            'x0': box[0],
+            'y0': box[1],
+            'x1': box[2],
+            'y1': box[3]
+        }
+    
+    def _combine_boxes(self, boxes: List[List[int]]) -> Dict[str, int]:
+        """Combine multiple boxes into one bounding box."""
+        if not boxes:
+            return {'x0': 0, 'y0': 0, 'x1': 0, 'y1': 0}
+        return {
+            'x0': min(b[0] for b in boxes),
+            'y0': min(b[1] for b in boxes),
+            'x1': max(b[2] for b in boxes),
+            'y1': max(b[3] for b in boxes)
+        }
