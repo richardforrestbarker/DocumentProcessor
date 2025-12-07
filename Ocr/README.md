@@ -1,6 +1,6 @@
 # Document OCR Service
 
-Python-based document OCR service using PaddleOCR and open-source transformer models (Donut, IDEFICS2, LayoutLMv3) for structured data extraction from receipts, invoices, and other documents.
+Python-based document OCR service using PaddleOCR and open-source transformer models (Donut, IDEFICS2, LayoutLMv3) for structured data extraction from multiple financial document types including receipts, invoices, bills, and other financial documents.
 
 ## Python Requirements
 
@@ -11,12 +11,15 @@ Python-based document OCR service using PaddleOCR and open-source transformer mo
 
 This service provides OCR and structured field extraction from document images using:
 - **PaddleOCR (PP-StructureV3)**: Text detection and recognition
-- **Donut (default)**: OCR-free document understanding transformer (MIT license)
-- **IDEFICS2**: Multimodal vision-language model (Apache 2.0 license)
+- **Donut (default)**: OCR-free document understanding transformer (MIT license) - optimized for receipts
+- **IDEFICS2**: Multimodal vision-language model (Apache 2.0 license) - supports multiple document types
 - **LayoutLMv3**: Layout-aware field extraction (requires OCR first)
 
 ## Features
 
+- **Multi-document type support**: Receipts, invoices, bills, and general financial documents
+- **Automatic document classification**: Identifies document type with confidence scores
+- **Extended field extraction**: Document-type-specific fields with confidence levels
 - Multi-page document processing
 - Token-to-bounding-box mapping
 - Configurable model selection (Donut, IDEFICS2, LayoutLMv3)
@@ -28,9 +31,14 @@ This service provides OCR and structured field extraction from document images u
 
 | Model | License | OCR Required | Memory | Best For |
 |-------|---------|--------------|--------|----------|
-| Donut | MIT | No | ~2GB | Fast processing, document-specific |
-| IDEFICS2 | Apache 2.0 | No | ~16GB (4-bit: ~6GB) | High accuracy, flexible |
-| LayoutLMv3 | - | Yes | ~2GB | Token classification tasks |
+| Donut | MIT | No | ~2GB | Fast processing, receipt-specific |
+| IDEFICS2 | Apache 2.0 | No | ~16GB (4-bit: ~6GB) | High accuracy, multi-document types, flexible |
+| LayoutLMv3 | - | Yes | ~2GB | Token classification tasks, custom training |
+
+**Model Capabilities:**
+- **Donut**: Best for receipts (CORD-v2 fine-tuned). Document type is inferred as "receipt".
+- **IDEFICS2**: Supports all document types (receipts, invoices, bills, financial documents). Uses advanced prompting to extract document-specific fields.
+- **LayoutLMv3**: Requires OCR preprocessing. Can be fine-tuned for specific document types.
 
 ## Setup
 
@@ -331,25 +339,32 @@ The image preprocessing pipeline supports configurable parameters via CLI or con
 
 ## Output Format
 
+All extracted fields include confidence levels. The output format varies based on document type:
+
 ```json
 {
   "job_id": "unique-job-id",
   "status": "done",
+  "document_type": {
+    "value": "invoice",
+    "confidence": 0.88,
+    "box": null
+  },
   "pages": [
     {
       "page_number": 1,
       "raw_ocr_text": "Full text from OCR...",
       "words": [
         {
-          "text": "TOTAL",
-          "box": {"x0": 100, "y0": 200, "x1": 200, "y1": 250},
+          "text": "INVOICE",
+          "box": {"x0": 100, "y0": 50, "x1": 200, "y1": 80},
           "confidence": 0.98
         }
       ]
     }
   ],
   "vendor_name": {
-    "value": "Sample Store",
+    "value": "Company Name",
     "confidence": 0.95,
     "box": {"x0": 50, "y0": 20, "x1": 300, "y1": 80}
   },
@@ -358,23 +373,84 @@ The image preprocessing pipeline supports configurable parameters via CLI or con
     "confidence": 0.92,
     "box": {"x0": 400, "y0": 30, "x1": 550, "y1": 70}
   },
+  "invoice_number": {
+    "value": "INV-2024-001",
+    "confidence": 0.87,
+    "box": {"x0": 50, "y0": 100, "x1": 200, "y1": 130}
+  },
+  "due_date": {
+    "value": "2024-02-15",
+    "confidence": 0.85,
+    "box": {"x0": 400, "y0": 100, "x1": 550, "y1": 130}
+  },
+  "customer_name": {
+    "value": "Client Company",
+    "confidence": 0.86,
+    "box": {"x0": 50, "y0": 150, "x1": 250, "y1": 180}
+  },
   "total_amount": {
-    "value": "45.99",
+    "value": "1250.00",
     "confidence": 0.96,
     "box": {"x0": 420, "y0": 600, "x1": 520, "y1": 650}
   },
+  "subtotal": {
+    "value": "1150.00",
+    "confidence": 0.94,
+    "box": {"x0": 420, "y0": 550, "x1": 520, "y1": 580}
+  },
+  "tax_amount": {
+    "value": "100.00",
+    "confidence": 0.93,
+    "box": {"x0": 420, "y0": 575, "x1": 520, "y1": 605}
+  },
   "line_items": [
     {
-      "description": "Product 1",
-      "quantity": 2,
-      "unit_price": 10.50,
-      "line_total": 21.00,
+      "description": "Consulting Services",
+      "quantity": 10,
+      "unit_price": "100.00",
+      "line_total": "1000.00",
       "box": {"x0": 50, "y0": 300, "x1": 550, "y1": 340},
       "confidence": 0.89
     }
   ]
 }
 ```
+
+### Document-Specific Fields
+
+**Common Fields (all document types):**
+- `document_type`: Document classification (receipt, invoice, bill, financial_document)
+- `vendor_name`: Business or merchant name
+- `merchant_address`: Business address
+- `date`: Document date
+- `total_amount`: Total amount
+- `subtotal`: Subtotal before tax
+- `tax_amount`: Tax amount
+- `currency`: Currency code (e.g., USD)
+- `line_items`: Array of line items with description, quantity, prices
+- `discount`: Discount amount
+- `shipping`: Shipping/delivery charges
+- `notes`: Additional notes
+
+**Invoice-Specific Fields:**
+- `invoice_number`: Invoice or reference number
+- `due_date`: Payment due date
+- `payment_terms`: Payment terms (e.g., "Net 30")
+- `customer_name`: Customer or "Bill To" name
+- `customer_address`: Customer address
+- `po_number`: Purchase order number
+
+**Bill-Specific Fields:**
+- `account_number`: Account number
+- `billing_period`: Billing period or statement period
+- `previous_balance`: Previous balance carried forward
+- `current_charges`: Current period charges
+- `amount_due`: Total amount due
+
+**Receipt-Specific Fields:**
+- `payment_method`: Payment method (cash, credit, debit, etc.)
+- `cashier_name`: Cashier or server name
+- `register_number`: Register or terminal number
 
 ## Architecture
 
