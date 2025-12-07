@@ -1,0 +1,34 @@
+﻿@page "/"
+@using DocumentProcessor.Wasm.Components
+@using DocumentProcessor.Data.Ocr.Messages
+@rendermode InteractiveWebAssembly
+
+<PageTitle>Document Processor - Example</PageTitle>
+
+<div class="container mt-4">
+    <h1>Document Processor Example</h1>
+    <p class="lead">
+        Process document images with OCR and extract structured data. 
+        Adjust preprocessing settings and see the results in real-time.
+    </p>
+    
+    <DocumentProcessingView OnResultAccepted="HandleResultAccepted" />
+    
+    @if (acceptedResult != null)
+    {
+        <div class="alert alert-success mt-4">
+            <h4>Result Accepted!</h4>
+            <p>The OCR result has been saved.</p>
+        </div>
+    }
+</div>
+
+@code {
+    private InferenceResult? acceptedResult;
+    
+    private void HandleResultAccepted(InferenceResult result)
+    {
+        acceptedResult = result;
+        // The result has been accepted and can be saved or processed further
+    }
+}
