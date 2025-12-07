@@ -168,7 +168,8 @@ class TestCLIArguments:
                 assert exc_info.value.code == 0
             output = captured_output.getvalue()
             assert 'Receipt OCR Service' in output
-            assert 'LayoutLMv3' in output
+            # Should list commercially licensed models
+            assert 'Donut' in output or 'IDEFICS2' in output
 
     def test_no_command_shows_help(self):
         """Test that running without command shows help."""

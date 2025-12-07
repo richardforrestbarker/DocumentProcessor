@@ -1,6 +1,6 @@
 # Document OCR Service
 
-Python-based document OCR service using PaddleOCR and open-source transformer models (Donut, IDEFICS2, LayoutLMv3) for structured data extraction from multiple financial document types including receipts, invoices, bills, and other financial documents.
+Python-based document OCR service using PaddleOCR and commercially-licensed vision-language models (Donut, IDEFICS2, Phi-3-Vision, InternVL, Qwen2-VL) for structured data extraction from multiple financial document types including receipts, invoices, bills, and other financial documents.
 
 ## Python Requirements
 
@@ -13,7 +13,9 @@ This service provides OCR and structured field extraction from document images u
 - **PaddleOCR (PP-StructureV3)**: Text detection and recognition
 - **Donut (default)**: OCR-free document understanding transformer (MIT license) - optimized for receipts
 - **IDEFICS2**: Multimodal vision-language model (Apache 2.0 license) - supports multiple document types
-- **LayoutLMv3**: Layout-aware field extraction (requires OCR first)
+- **Phi-3-Vision**: Lightweight vision-language model (MIT license) - efficient and balanced
+- **InternVL**: High-accuracy vision-language model (MIT license) - strong OCR capabilities
+- **Qwen2-VL**: Efficient vision-language model (Apache 2.0 license) - strong performance
 
 ## Features
 
@@ -22,12 +24,14 @@ This service provides OCR and structured field extraction from document images u
 - **Extended field extraction**: Document-type-specific fields with confidence levels
 - Multi-page document processing
 - Token-to-bounding-box mapping
-- Configurable model selection (Donut, IDEFICS2, LayoutLMv3)
+- Configurable model selection (all commercially licensed)
 - GPU acceleration with CPU fallback
 - CLI interface for integration with .NET API
 - Open-source models with permissive licenses
 
 ## Supported Models
+
+All models have commercial-friendly open source licenses (MIT or Apache 2.0).
 
 | Model | License | OCR Required | Memory | Best For |
 |-------|---------|--------------|--------|----------|
@@ -36,15 +40,13 @@ This service provides OCR and structured field extraction from document images u
 | Phi-3-Vision | MIT | No | ~7GB | Efficient, balanced performance |
 | InternVL | MIT | No | ~8GB (2B: ~4GB) | High accuracy, strong OCR |
 | Qwen2-VL | Apache 2.0 | No | ~7GB (2B: ~4GB) | Strong performance, efficient |
-| LayoutLMv3 | - | Yes | ~2GB | Token classification, custom training |
 
 **Model Capabilities:**
-- **Donut** (naver-clova-ix/donut-base-finetuned-cord-v2): Best for receipts (CORD-v2 fine-tuned). Document type is inferred as "receipt".
-- **IDEFICS2** (HuggingFaceM4/idefics2-8b): Supports all document types (receipts, invoices, bills, financial documents). Uses advanced prompting to extract document-specific fields.
-- **Phi-3-Vision** (microsoft/Phi-3-vision-128k-instruct): Microsoft's lightweight vision-language model with 128k context window. Good balance of efficiency and accuracy for all document types.
-- **InternVL** (OpenGVLab/InternVL2-8B, InternVL2-4B, InternVL2-2B): Powerful vision-language model with strong OCR and document understanding. Available in multiple sizes.
-- **Qwen2-VL** (Qwen/Qwen2-VL-7B-Instruct, Qwen2-VL-2B-Instruct): Alibaba's efficient vision-language model with strong performance on document tasks.
-- **LayoutLMv3** (microsoft/layoutlmv3-base): Requires OCR preprocessing. Can be fine-tuned for specific document types.
+- **Donut** (naver-clova-ix/donut-base-finetuned-cord-v2): Best for receipts (CORD-v2 fine-tuned). Document type is inferred as "receipt". MIT license.
+- **IDEFICS2** (HuggingFaceM4/idefics2-8b): Supports all document types (receipts, invoices, bills, financial documents). Uses advanced prompting to extract document-specific fields. Apache 2.0 license.
+- **Phi-3-Vision** (microsoft/Phi-3-vision-128k-instruct): Microsoft's lightweight vision-language model with 128k context window. Good balance of efficiency and accuracy for all document types. MIT license.
+- **InternVL** (OpenGVLab/InternVL2-8B, InternVL2-4B, InternVL2-2B): Powerful vision-language model with strong OCR and document understanding. Available in multiple sizes. MIT license.
+- **Qwen2-VL** (Qwen/Qwen2-VL-7B-Instruct, Qwen2-VL-2B-Instruct): Alibaba's efficient vision-language model with strong performance on document tasks. Apache 2.0 license.
 
 ## Setup
 
@@ -174,16 +176,7 @@ huggingface-cli download HuggingFaceM4/idefics2-8b --local-dir ./models/idefics2
 huggingface-cli download HuggingFaceM4/idefics2-8b-AWQ --local-dir ./models/idefics2-8b-awq
 ```
 
-#### LayoutLMv3 (Legacy)
 
-LayoutLMv3 requires OCR to be run first.
-
-```bash
-huggingface-cli download microsoft/layoutlmv3-base --local-dir ./models/layoutlmv3-base
-3. Use the local path when running the CLI:
-   ```bash
-   python cli.py process --image receipt.jpg --model ./models/layoutlmv3-base
-   ```
 
 ### Verifying Installation
 
@@ -228,8 +221,14 @@ python cli.py process --image document.jpg --output result.json --model-type don
 # Use IDEFICS2 (multimodal, Apache 2.0 license, requires more GPU memory)
 python cli.py process --image document.jpg --output result.json --model-type idefics2 --device cuda
 
-# Use LayoutLMv3 (requires OCR first)
-python cli.py process --image document.jpg --output result.json --model-type layoutlmv3 --model microsoft/layoutlmv3-base
+# Use Phi-3-Vision (efficient, MIT license)
+python cli.py process --image document.jpg --output result.json --model microsoft/Phi-3-vision-128k-instruct
+
+# Use InternVL (high accuracy, MIT license)
+python cli.py process --image document.jpg --output result.json --model OpenGVLab/InternVL2-8B
+
+# Use Qwen2-VL (balanced, Apache 2.0 license)
+python cli.py process --image document.jpg --output result.json --model Qwen/Qwen2-VL-7B-Instruct
 ```
 
 Configure OCR engine and device:
@@ -292,7 +291,7 @@ Configuration file: `config/config.yaml`
 ```yaml
 model:
   name_or_path: "naver-clova-ix/donut-base-finetuned-cord-v2"
-  type: "donut"  # donut, idefics2, or layoutlmv3
+  type: "donut"  # donut, idefics2, phi3-vision, internvl, or qwen2-vl
   device: "auto"  # auto, cuda, cpu
   
 ocr:
@@ -473,7 +472,7 @@ All extracted fields include confidence levels. The output format varies based o
 2. **Text Detection**: PaddleOCR detector finds text regions
 3. **OCR**: PaddleOCR recognizer extracts text with bounding boxes
 4. **Tokenization**: Split text into model tokens, map to boxes
-5. **Model Inference**: LayoutLMv3 identifies field types and entities
+5. **Model Inference**: Vision-language models identify field types and entities
 6. **Postprocessing**: Parse values, verify totals, merge multi-page results
 
 ### Manual Image Preprocessing
@@ -595,7 +594,7 @@ The test suite includes both unit tests and integration tests.
 2. **Integration Tests** (`tests/test_cli_integration.py`) - 21 tests
    - PaddleOCR text detection and recognition
    - Tesseract OCR fallback
-   - LayoutLMv3 model loading and inference
+   - Vision-language model loading and inference
    - Full pipeline end-to-end processing
    - Multi-page receipt handling
    - These tests run the actual models and require full dependencies
@@ -646,14 +645,6 @@ python -m pytest tests/ --cov=. --cov-report=term-missing
 ```
 
 ## Development
-
-### Fine-tuning LayoutLMv3
-
-See `docs/fine_tuning.md` for instructions on:
-- Preparing training data
-- Labeling documents
-- Training the model
-- Evaluating performance
 
 ### Adding New Models
 

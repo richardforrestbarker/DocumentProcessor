@@ -3,7 +3,7 @@ Integration tests that actually execute the OCR models.
 
 These tests require the full dependencies to be installed:
 - PaddleOCR or Tesseract
-- LayoutLMv3 (optional)
+- Vision-language models (optional)
 
 Tests are marked with skip conditions if dependencies are not available.
 """

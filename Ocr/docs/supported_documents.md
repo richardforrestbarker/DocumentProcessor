@@ -28,14 +28,15 @@ Document type is automatically detected using:
 
 ## Supported Models and Document Types
 
-| Model | Receipt | Invoice | Bill | Financial Doc | Notes |
-|-------|---------|---------|------|---------------|-------|
-| **Donut** | ✅ Optimized | ⚠️ Limited | ⚠️ Limited | ⚠️ Limited | CORD-v2 fine-tuned for receipts |
-| **IDEFICS2** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | Multi-document support via prompting |
-| **Phi-3-Vision** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | Efficient, 128k context window |
-| **InternVL** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | Strong OCR capabilities |
-| **Qwen2-VL** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | Efficient and accurate |
-| **LayoutLMv3** | ✅ Good | ✅ Good | ✅ Good | ✅ Good | Can be fine-tuned for specific types |
+All models have commercial-friendly open source licenses (MIT or Apache 2.0).
+
+| Model | Receipt | Invoice | Bill | Financial Doc | License | Notes |
+|-------|---------|---------|------|---------------|---------|-------|
+| **Donut** | ✅ Optimized | ⚠️ Limited | ⚠️ Limited | ⚠️ Limited | MIT | CORD-v2 fine-tuned for receipts |
+| **IDEFICS2** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | Apache 2.0 | Multi-document support via prompting |
+| **Phi-3-Vision** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | MIT | Efficient, 128k context window |
+| **InternVL** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | MIT | Strong OCR capabilities |
+| **Qwen2-VL** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent | Apache 2.0 | Efficient and accurate |
 
 **Legend:**
 - ✅ Excellent/Optimized: Model designed for or performs excellently on this document type
@@ -138,7 +139,6 @@ Additional fields for bills:
   - **IDEFICS2**: Very good, handles various layouts
   - **Qwen2-VL**: Strong performance, efficient
   - **Phi-3-Vision**: Good balance of speed and accuracy
-  - **LayoutLMv3**: Can be fine-tuned on invoice datasets
 
 ### For Bills
 - **Best**: IDEFICS2 or InternVL
@@ -148,7 +148,6 @@ Additional fields for bills:
 - **Alternatives**:
   - **Qwen2-VL**: Good at structured data extraction
   - **Phi-3-Vision**: Efficient processing
-  - **LayoutLMv3**: Can be trained on specific bill formats
 
 ### For Mixed Document Types
 - **Best**: IDEFICS2, Phi-3-Vision, InternVL, or Qwen2-VL
@@ -163,9 +162,8 @@ Additional fields for bills:
 
 The system uses a multi-level extraction strategy:
 
-1. **Model Inference**: Primary extraction using transformer models
-   - Donut/IDEFICS2: Direct generation of structured output
-   - LayoutLMv3: Token classification with entity extraction
+1. **Model Inference**: Primary extraction using vision-language models
+   - All models: Direct generation of structured output from document images
 
 2. **Heuristic Fallback**: Rule-based extraction for missing fields
    - Keyword matching for field identification
@@ -190,14 +188,13 @@ To extend support for new document types:
    - Add extraction methods to `FieldExtractor` class
    - Update `receipt_processor.py` result structure
 
-3. **Update Model Prompts** (for IDEFICS2):
-   - Extend `RECEIPT_EXTRACTION_PROMPT` in `idefics2.py`
-   - Include new fields in example JSON
+3. **Update Model Prompts**:
+   - Extend document extraction prompts in model implementations
+   - Include new fields in example JSON outputs
 
-4. **Fine-tune Models** (optional):
-   - Prepare training data for new document type
-   - Fine-tune Donut or LayoutLMv3 models
-   - See `docs/fine_tuning.md` for details
+4. **Test with Sample Documents**:
+   - Validate extraction accuracy with new document type
+   - Adjust confidence thresholds as needed
 
 ## Confidence Level Interpretation
 

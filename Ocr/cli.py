@@ -30,7 +30,7 @@ from src.receipt_processor import (
     extract_fields_heuristic,
     process_receipt,
     run_ocr,
-    run_layoutlm_inference,
+    run_model_inference_standalone,
 )
 
 

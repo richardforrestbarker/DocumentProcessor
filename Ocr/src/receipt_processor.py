@@ -20,13 +20,13 @@ class ReceiptProcessor:
     1. Image preprocessing (denoise, deskew, normalize)
     2. Text detection and OCR
     3. Tokenization and box mapping
-    4. Model inference (LayoutLMv3)
+    4. Model inference (vision-language models)
     5. Postprocessing and field extraction
     """
     
     def __init__(
         self,
-        model_name: str = "microsoft/layoutlmv3-base",
+        model_name: str = "naver-clova-ix/donut-base-finetuned-cord-v2",
         ocr_engine: str = "paddle",
         device: str = "auto",
         config: Optional[Dict[str, Any]] = None
@@ -98,10 +98,10 @@ class ReceiptProcessor:
         return self._ocr
     
     def _get_model(self):
-        """Get or create LayoutLMv3 model."""
+        """Get or create vision-language model."""
         if self._model is None:
-            from .models.layoutlmv3 import LayoutLMv3Model
-            self._model = LayoutLMv3Model(
+            from .models import get_model
+            self._model = get_model(
                 model_name_or_path=self.model_name,
                 device=self.device
             )
@@ -129,7 +129,7 @@ class ReceiptProcessor:
         Args:
             image_paths: List of image file paths
             job_id: Optional job identifier
-            skip_model: Skip LayoutLM model inference (use only heuristics)
+            skip_model: Skip model inference (use only heuristics)
             
         Returns:
             Dictionary with extracted receipt data
@@ -370,7 +370,7 @@ class ReceiptProcessor:
         image: np.ndarray
     ) -> Dict[str, Any]:
         """
-        Run LayoutLMv3 model inference.
+        Run vision-language model inference.
         
         Args:
             words: List of words with boxes
@@ -627,8 +627,8 @@ def run_ocr(image, ocr_engine="paddle", device="auto"):
     return proc.run_ocr(image)
 
 
-def run_layoutlm_inference(words, image, model_name="microsoft/layoutlmv3-base", device="auto"):
-    """Run LayoutLMv3 model inference."""
+def run_model_inference_standalone(words, image, model_name="naver-clova-ix/donut-base-finetuned-cord-v2", device="auto"):
+    """Run vision-language model inference."""
     proc = ReceiptProcessor(model_name=model_name, device=device)
     return proc.run_model_inference(words, image)
 
@@ -640,7 +640,7 @@ def process_receipt(
     skip_model=False,
     ocr_engine="paddle",
     device="auto",
-    model_name="microsoft/layoutlmv3-base",
+    model_name="naver-clova-ix/donut-base-finetuned-cord-v2",
     denoise=False,
     deskew=False,
     verbose=False

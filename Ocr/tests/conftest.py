@@ -168,7 +168,7 @@ def mock_tesseract():
 
 @pytest.fixture
 def mock_layoutlm():
-    """Mock LayoutLMv3 model for testing without actual model."""
+    """Mock vision-language model for testing without actual model."""
     try:
         with patch('transformers.AutoProcessor') as mock_processor, \
              patch('transformers.AutoModelForTokenClassification') as mock_model:
