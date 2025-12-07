@@ -537,7 +537,31 @@ namespace DocumentProcessor.Api.Ocr
                 CreateNoWindow = true
             };
 
-            _logger.LogInformation("Executing: {FileName} {Arguments}", processStartInfo.FileName, processStartInfo.Arguments);
+            // Configure working directory: prefer configured value; else directory of CLI; else AppContext.BaseDirectory
+            var workingDir = _config.PythonWorkingDirectory;
+            if (string.IsNullOrWhiteSpace(workingDir))
+            {
+                try
+                {
+                    var cliPath = GetCliPath();
+                    var cliDir = Path.GetDirectoryName(cliPath);
+                    workingDir = string.IsNullOrWhiteSpace(cliDir) ? AppContext.BaseDirectory : cliDir;
+                }
+                catch
+                {
+                    workingDir = AppContext.BaseDirectory;
+                }
+            }
+            try
+            {
+                processStartInfo.WorkingDirectory = Path.GetFullPath(workingDir!);
+            }
+            catch
+            {
+                processStartInfo.WorkingDirectory = AppContext.BaseDirectory;
+            }
+
+            _logger.LogInformation("Executing: {FileName} {Arguments} (cwd: {Cwd})", processStartInfo.FileName, processStartInfo.Arguments, processStartInfo.WorkingDirectory);
 
             using var process = new Process { StartInfo = processStartInfo };
             if (!process.Start())

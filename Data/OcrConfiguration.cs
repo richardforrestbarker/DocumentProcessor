@@ -44,6 +44,13 @@ namespace DocumentProcessor.Data
         public string PythonServicePath { get; set; } = "./Ocr/cli.py";
 
         /// <summary>
+        /// Optional working directory to use when invoking the Python CLI.
+        /// If not set, defaults to the directory containing the PythonServicePath.
+        /// </summary>
+        [JsonPropertyName("python_working_directory")]
+        public string? PythonWorkingDirectory { get; set; }
+
+        /// <summary>
         /// Temporary storage path for uploaded images
         /// </summary>
         [JsonPropertyName("temp_storage_path")]
