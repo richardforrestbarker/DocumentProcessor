@@ -22,30 +22,16 @@ __all__ = [
 ]
 
 
-def get_model(model_type: str, **kwargs):
+def get_model(model_name_or_path: str, **kwargs):
     """
-    Factory function to get a model instance by type.
-    
-    Args:
-        model_type: One of 'layoutlmv3', 'donut', 'idefics2'
-        **kwargs: Model-specific arguments
-        
-    Returns:
-        Model instance
-        
-    Raises:
-        ValueError: If model_type is not recognized
+    Factory function to get a model instance based on the model name/path.
+    Chooses implementation by inspecting the model identifier.
     """
-    model_type_lower = model_type.lower()
-    
-    if model_type_lower == "layoutlmv3":
-        return LayoutLMv3Model(**kwargs)
-    elif model_type_lower == "donut":
-        return DonutModel(**kwargs)
-    elif model_type_lower == "idefics2":
-        return IDEFICS2Model(**kwargs)
-    else:
-        raise ValueError(
-            f"Unknown model type: {model_type}. "
-            f"Supported types: layoutlmv3, donut, idefics2"
-        )
+    name = (model_name_or_path or "").lower()
+    # Simple heuristics
+    if "layoutlmv3" in name or name.startswith("microsoft/layoutlmv3"):
+        return LayoutLMv3Model(model_name_or_path=model_name_or_path, **kwargs)
+    if "idefics" in name or name.startswith("huggingfacem4/idefics2"):
+        return IDEFICS2Model(model_name_or_path=model_name_or_path, **kwargs)
+    # Default to Donut
+    return DonutModel(model_name_or_path=model_name_or_path, **kwargs)

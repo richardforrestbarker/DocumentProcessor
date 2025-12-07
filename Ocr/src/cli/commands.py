@@ -222,7 +222,9 @@ def preprocess_command(
     deskew_threshold: int = 40,
     contrast_type: str = "sigmoidal",
     contrast_strength: float = 3,
-    contrast_midpoint: int = 120
+    contrast_midpoint: int = 120,
+    apply_threshold: bool = False,
+    threshold_percent: int = 50
 ) -> dict:
     """
     Run preprocessing only on an image (before resampling step).
@@ -249,7 +251,9 @@ def preprocess_command(
             "deskew_threshold": deskew_threshold,
             "contrast_type": contrast_type,
             "contrast_strength": contrast_strength,
-            "contrast_midpoint": contrast_midpoint
+            "contrast_midpoint": contrast_midpoint,
+            "apply_threshold": apply_threshold,
+            "threshold_percent": threshold_percent
         }
     }))
 
@@ -267,6 +271,12 @@ def preprocess_command(
         contrast_midpoint=contrast_midpoint
     )
 
+    # Set threshold options on the preprocessor if supported
+    if hasattr(preprocessor, 'apply_threshold'):
+        setattr(preprocessor, 'apply_threshold', apply_threshold)
+    if hasattr(preprocessor, 'threshold_percent'):
+        setattr(preprocessor, 'threshold_percent', threshold_percent)
+
     effective_job_id = job_id or f"preprocess-{hash(input_image) % 100000:05d}"
 
     result = {
@@ -280,7 +290,9 @@ def preprocess_command(
             "deskew_threshold": deskew_threshold,
             "contrast_type": contrast_type,
             "contrast_strength": contrast_strength,
-            "contrast_midpoint": contrast_midpoint
+            "contrast_midpoint": contrast_midpoint,
+            "apply_threshold": apply_threshold,
+            "threshold_percent": threshold_percent
         }
     }
 
@@ -433,7 +445,6 @@ def inference_command(
     verbose: bool = False,
     log_level: Optional[str] = None,
     model: str = "naver-clova-ix/donut-base-finetuned-cord-v2",
-    model_type: str = "donut",
     device: str = "auto"
 ) -> dict:
     """
@@ -447,7 +458,6 @@ def inference_command(
         "input_image": input_image,
         "job_id": job_id,
         "ocr_result_path": ocr_result_path,
-        "model_type": model_type,
         "model": model,
         "device": device
     }))
@@ -465,7 +475,6 @@ def inference_command(
         "status": "done",
         "input_image": input_image,
         "ocr_result_path": ocr_result_path,
-        "model_type": model_type,
         "vendor_name": None,
         "merchant_address": None,
         "date": None,
@@ -493,29 +502,22 @@ def inference_command(
         
         try:
             from ..models import get_model
-            model_obj = get_model(
-                model_type,
-                model_name_or_path=model,
-                device=actual_device
-            )
+            model_obj = get_model(model_name_or_path=model, device=actual_device)
             model_obj.load()
             tokens = [w['text'] for w in normalized_words] if normalized_words else []
             boxes = [w['box'] for w in normalized_words] if normalized_words else []
-            if model_type == "layoutlmv3" and not normalized_words:
-                logger.warning("LayoutLMv3 requires OCR words. Skipping model inference.")
-            else:
-                model_result = model_obj.predict_from_words(
-                    words=tokens,
-                    boxes=boxes,
-                    image=first_image
-                )
-                if model_result.get("entities"):
-                    model_predictions = model_result["entities"]
-                    logger.info(json.dumps({
-                        "event": "model_entities",
-                        "job_id": effective_job_id,
-                        "entities": list(model_predictions.keys())
-                    }))
+            model_result = model_obj.predict_from_words(
+                words=tokens,
+                boxes=boxes,
+                image=first_image
+            )
+            if model_result.get("entities"):
+                model_predictions = model_result["entities"]
+                logger.info(json.dumps({
+                    "event": "model_entities",
+                    "job_id": effective_job_id,
+                    "entities": list(model_predictions.keys())
+                }))
         except Exception as e:
             logger.warning(json.dumps({
                 "event": "model_error",

@@ -54,5 +54,15 @@ namespace DocumentProcessor.Data.Ocr.Messages
         /// Contrast midpoint percentage (0-200).
         /// </summary>
         public int ContrastMidpoint { get; set; } = 120;
+        
+        /// <summary>
+        /// Apply thresholding after contrast step.
+        /// </summary>
+        public bool ApplyThreshold { get; set; } = false;
+        
+        /// <summary>
+        /// Threshold percentage (0-100) used when ApplyThreshold is true.
+        /// </summary>
+        public int ThresholdPercent { get; set; } = 50;
     }
 }
