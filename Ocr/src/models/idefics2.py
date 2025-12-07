@@ -222,21 +222,9 @@ class IDEFICS2Model(BaseModel):
         
         logger.info("Running IDEFICS2 inference...")
         
-        # Create chat-style messages for IDEFICS2
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image"},
-                    {"type": "text", "text": RECEIPT_EXTRACTION_PROMPT}
-                ]
-            }
-        ]
-        
-        # Apply chat template and process
-        prompt = self.processor.apply_chat_template(messages, add_generation_prompt=True)
+        # Build inputs without chat template (some processors have no template)
         inputs = self.processor(
-            text=prompt,
+            text=RECEIPT_EXTRACTION_PROMPT,
             images=[pil_image],
             return_tensors="pt"
         )
@@ -249,7 +237,7 @@ class IDEFICS2Model(BaseModel):
             outputs = self.model.generate(
                 **inputs,
                 max_new_tokens=self.max_new_tokens,
-                do_sample=False,  # Greedy decoding for consistency
+                do_sample=False,
                 num_beams=1,
             )
         
@@ -267,8 +255,8 @@ class IDEFICS2Model(BaseModel):
         return {
             "raw_output": response,
             "entities": entities,
-            "predictions": [],  # Not applicable for generation
-            "confidences": []   # Not available for generation models
+            "predictions": [],
+            "confidences": []
         }
     
     def _parse_json_output(self, response: str) -> Dict[str, Any]:
@@ -352,7 +340,6 @@ class IDEFICS2Model(BaseModel):
                 
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse JSON output: {e}")
-            # Fallback to regex parsing
             entities = self._fallback_parse(response, entities)
         except Exception as e:
             logger.warning(f"Error parsing output: {e}")
@@ -382,7 +369,6 @@ class IDEFICS2Model(BaseModel):
         """Fallback regex-based parsing."""
         import re
         
-        # Look for vendor name at the start (often in caps)
         vendor_match = re.match(r'^([A-Z][A-Za-z\s&]+)', response)
         if vendor_match:
             entities["vendor_name"] = {
@@ -391,7 +377,6 @@ class IDEFICS2Model(BaseModel):
                 "box": None
             }
         
-        # Look for date pattern
         date_match = re.search(r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})', response)
         if date_match:
             entities["date"] = {
@@ -400,7 +385,6 @@ class IDEFICS2Model(BaseModel):
                 "box": None
             }
         
-        # Look for total pattern
         total_match = re.search(r'total[:\s]*\$?(\d+\.?\d*)', response, re.IGNORECASE)
         if total_match:
             entities["total_amount"] = {
@@ -431,6 +415,4 @@ class IDEFICS2Model(BaseModel):
         Returns:
             Dictionary with predictions and extracted entities
         """
-        # IDEFICS2 can use OCR text as additional context
-        # For now, just use the image directly
         return self.predict([], [], image)

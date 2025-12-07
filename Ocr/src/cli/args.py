@@ -82,6 +82,18 @@ Types:
         metavar="0-200",
         help="Contrast midpoint percentage for sigmoidal type (default: 120). Values >100 brighten, <100 darken."
     )
+    parser.add_argument(
+        "--apply-threshold",
+        action="store_true",
+        help="Apply ImageMagick threshold after contrast step"
+    )
+    parser.add_argument(
+        "--threshold-percent",
+        type=int,
+        default=50,
+        metavar="0-100",
+        help="Threshold percentage (default: 50). Used when --apply-threshold is set."
+    )
 
 
 def _add_ocr_arguments(parser: argparse.ArgumentParser) -> None:
@@ -108,16 +120,6 @@ def _add_inference_arguments(parser: argparse.ArgumentParser) -> None:
         "-m",
         default="naver-clova-ix/donut-base-finetuned-cord-v2",
         help="Model name or path (default: naver-clova-ix/donut-base-finetuned-cord-v2)"
-    )
-    parser.add_argument(
-        "--model-type",
-        choices=["donut", "idefics2", "layoutlmv3"],
-        default="donut",
-        help="""Model type to use for field extraction (default: donut).
-Types:
-  donut: OCR-free document understanding (MIT license, fast, recommended)
-  idefics2: Multimodal vision-language model (Apache 2.0, high quality)
-  layoutlmv3: Layout-aware token classification (requires OCR first)"""
     )
     _add_device_argument(parser)
 
@@ -156,16 +158,6 @@ def create_argument_parser() -> argparse.ArgumentParser:
         "-m",
         default="naver-clova-ix/donut-base-finetuned-cord-v2",
         help="Model name or path (default: naver-clova-ix/donut-base-finetuned-cord-v2)"
-    )
-    process_parser.add_argument(
-        "--model-type",
-        choices=["donut", "idefics2", "layoutlmv3"],
-        default="donut",
-        help="""Model type to use for field extraction (default: donut).
-Types:
-  donut: OCR-free document understanding (MIT license, fast, recommended)
-  idefics2: Multimodal vision-language model (Apache 2.0, high quality)
-  layoutlmv3: Layout-aware token classification (requires OCR first)"""
     )
     process_parser.add_argument(
         "--ocr-engine",
@@ -245,6 +237,18 @@ Types:
         default=120,
         metavar="0-200",
         help="Contrast midpoint percentage for sigmoidal type (default: 120). Values >100 brighten, <100 darken."
+    )
+    process_parser.add_argument(
+        "--apply-threshold",
+        action="store_true",
+        help="Apply ImageMagick threshold after contrast step"
+    )
+    process_parser.add_argument(
+        "--threshold-percent",
+        type=int,
+        default=50,
+        metavar="0-100",
+        help="Threshold percentage (default: 50). Used when --apply-threshold is set."
     )
     
     # Preprocess command (preprocessing only, before resampling)

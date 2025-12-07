@@ -3,6 +3,8 @@
 @using System.Text.Json
 @using System.IO
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components
 @using DocumentProcessor.Data.Ocr;
 @using DocumentProcessor.Data.Ocr.Messages;
 @using DocumentProcessor.Data.Messages;
@@ -11,6 +13,33 @@
 @inject IDocumentProcessor DocumentProcessingClient
 @inject ILogger<DocumentProcessingView> Logger
 @implements IDisposable
+
+<style>
+    .magnifier-container {
+        position: relative;
+        display: inline-block;
+    }
+    .magnifier-image {
+        max-height: 500px;
+        width: auto;
+        height: auto;
+        display: block;
+    }
+    .magnifier-lens {
+        position: absolute;
+        pointer-events: none;
+        border: 2px solid rgba(0,0,0,0.2);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        border-radius: 50%;
+        width: 160px;
+        height: 160px;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 200%; /* zoom level */
+        display: none;
+        z-index: 10;
+    }
+</style>
 
 <div class="document-processing-view">
     <h3>Document Processing Live View</h3>
@@ -62,10 +91,17 @@
                 <div class="card-body text-center">
                     @if (!string.IsNullOrEmpty(sourceImageBase64))
                     {
-                        <img src="data:image/png;base64,@((currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) && !string.IsNullOrEmpty(preprocessedImageBase64) ? preprocessedImageBase64 : sourceImageBase64)"
-                             class="img-fluid"
-                             alt="@((currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) ? "Preprocessing Result" : "Source Image")"
-                             style="max-height: 500px;" />
+                        <div class="magnifier-container"
+                             @onmousemove="(e) => OnMagnifierMove(e, true)"
+                             @onmouseenter="() => ShowMagnifier(true)"
+                             @onmouseleave="() => HideMagnifier(true)">
+                            <img src="data:image/png;base64,@((currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) && !string.IsNullOrEmpty(preprocessedImageBase64) ? preprocessedImageBase64 : sourceImageBase64)"
+                                 class="img-fluid magnifier-image"
+                                 alt="@((currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) ? "Preprocessing Result" : "Source Image")"
+                                 @ref="leftImageRef" />
+                            <div class="magnifier-lens" style="@leftLensStyle"
+                                 @ref="leftLensRef"></div>
+                        </div>
                     }
                     else
                     {
@@ -144,10 +180,17 @@
                     }
                     else if (currentPhase == ProcessingPhase.Preprocessing && !string.IsNullOrEmpty(preprocessedImageBase64))
                     {
-                        <img src="data:image/png;base64,@preprocessedImageBase64"
-                             class="img-fluid"
-                             alt="Preprocessed Image"
-                             style="max-height: 500px;" />
+                        <div class="magnifier-container"
+                             @onmousemove="(e) => OnMagnifierMove(e, false)"
+                             @onmouseenter="() => ShowMagnifier(false)"
+                             @onmouseleave="() => HideMagnifier(false)">
+                            <img src="data:image/png;base64,@preprocessedImageBase64"
+                                 class="img-fluid magnifier-image"
+                                 alt="Preprocessed Image"
+                                 @ref="rightImageRef" />
+                            <div class="magnifier-lens" style="@rightLensStyle"
+                                 @ref="rightLensRef"></div>
+                        </div>
                     }
                     else if (currentPhase == ProcessingPhase.Ocr && ocrResult != null)
                     {
@@ -222,8 +265,14 @@
     @if (currentPhase == ProcessingPhase.Preprocessing)
     {
         <div class="card mt-4">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Preprocessing Settings</h5>
+                @if (!string.IsNullOrEmpty(preprocessedImageBase64))
+                {
+                    <button class="btn btn-outline-secondary btn-sm" onclick="@ReplaceSourceWithPreprocessed" disabled="@isLoading">
+                        <i class="bi bi-arrow-down-up me-1"></i>Replace source image with result
+                    </button>
+                }
             </div>
             <div class="card-body">
                 <div class="row">
@@ -241,6 +290,11 @@
                             <InputCheckbox class="form-check-input" id="denoise"
                                    @bind-Value="settings.Denoise" @bind-Value:after="OnSettingsChanged" />
                             <label class="form-check-label" for="denoise">Denoise</label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <InputCheckbox class="form-check-input" id="applyThreshold"
+                                   @bind-Value="settings.ApplyThreshold" @bind-Value:after="OnSettingsChanged" />
+                            <label class="form-check-label" for="applyThreshold">Apply Threshold</label>
                         </div>
                     </div>
                     <div class="col-md-4">
@@ -260,6 +314,17 @@
                                    min="0" max="100" step="5"
                                    @bind-Value="settings.DeskewThreshold" @bind-Value:after="OnSettingsChanged" />
                         </div>
+                        @if (settings.ApplyThreshold)
+                        {
+                            <div class="mb-3">
+                                <label for="thresholdPercent" class="form-label">
+                                    Threshold Percent: @settings.ThresholdPercent %
+                                </label>
+                                <InputNumber type="range" class="form-range" id="thresholdPercent"
+                                       min="0" max="100" step="5"
+                                       @bind-Value="settings.ThresholdPercent" @bind-Value:after="OnSettingsChanged" />
+                            </div>
+                        }
                     </div>
                     <div class="col-md-4">
                         <div class="mb-3">
@@ -354,23 +419,13 @@
                         Inference structures the OCR text into fields (e.g., vendor, date, totals, line items)
                         enabling reliable downstream automation and validation.
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="mb-3">
                             <label for="model" class="form-label">Model</label>
                             <InputText class="form-control" id="model" @bind-Value="inferenceSettings.Model" />
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="modelType" class="form-label">Model Type</label>
-                            <InputSelect class="form-select" id="modelType" @bind-Value="inferenceSettings.ModelType">
-                                <option value="donut">Donut</option>
-                                <option value="idefics2">Idefics2</option>
-                                <option value="layoutlmv3">LayoutLMv3</option>
-                            </InputSelect>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="mb-3">
                             <label for="inferenceDevice" class="form-label">Device</label>
                             <InputSelect class="form-select" id="inferenceDevice" @bind-Value="inferenceSettings.Device">
@@ -476,6 +531,14 @@
     private System.Timers.Timer? progressTimer;
     private System.Timers.Timer? statusPollTimer;
     private DateTime lastSettingsChange;
+
+    // Magnifier state
+    private ElementReference leftImageRef;
+    private ElementReference rightImageRef;
+    private ElementReference leftLensRef;
+    private ElementReference rightLensRef;
+    private bool leftLensVisible;
+    private bool rightLensVisible;
 
     protected override void OnInitialized()
     {
@@ -666,7 +729,9 @@
                 DeskewThreshold = settings.DeskewThreshold,
                 ContrastType = settings.ContrastType,
                 ContrastStrength = settings.ContrastStrength,
-                ContrastMidpoint = settings.ContrastMidpoint
+                ContrastMidpoint = settings.ContrastMidpoint,
+                ApplyThreshold = settings.ApplyThreshold,
+                ThresholdPercent = settings.ThresholdPercent
             };
 
             var result = await DocumentProcessingClient.PreprocessImageAsync(request);
@@ -780,7 +845,6 @@
                 ImageBase64 = preprocessedImageBase64,
                 JobId = currentJobId,
                 Model = inferenceSettings.Model,
-                ModelType = inferenceSettings.ModelType,
                 Device = inferenceSettings.Device
             };
 
@@ -862,6 +926,101 @@
         }
     }
 
+    private void ReplaceSourceWithPreprocessed()
+    {
+        if (!string.IsNullOrEmpty(preprocessedImageBase64))
+        {
+            // Replace source with last preprocessed result to allow stacking
+            sourceImageBase64 = preprocessedImageBase64;
+            // Clear current preprocessed result to show updated preview after re-run
+            preprocessedImageBase64 = null;
+            ocrResult = null;
+            inferenceResult = null;
+            currentPhase = ProcessingPhase.Preprocessing;
+            OnSettingsChanged();
+        }
+    }
+
+    // Magnifier helpers
+    private void ShowMagnifier(bool isLeft)
+    {
+        if (isLeft)
+        {
+            leftLensVisible = true;
+            // set display via JS-less by toggling style
+            _ = InvokeAsync(async () =>
+            {
+                await Task.Delay(0);
+                await UpdateLensDisplay(isLeft);
+            });
+        }
+        else
+        {
+            rightLensVisible = true;
+            _ = InvokeAsync(async () =>
+            {
+                await Task.Delay(0);
+                await UpdateLensDisplay(isLeft);
+            });
+        }
+    }
+
+    private void HideMagnifier(bool isLeft)
+    {
+        if (isLeft) leftLensVisible = false; else rightLensVisible = false;
+        _ = InvokeAsync(async () =>
+        {
+            await Task.Delay(0);
+            await UpdateLensDisplay(isLeft);
+        });
+    }
+
+    private async Task UpdateLensDisplay(bool isLeft)
+    {
+        var lens = isLeft ? leftLensRef : rightLensRef;
+        // We cannot set style directly on ElementReference in Blazor Server/WASM without JS.
+        // Use conditional rendering via CSS classes: display when visible.
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OnMagnifierMove(MouseEventArgs e, bool isLeft)
+    {
+        var lens = isLeft ? leftLensRef : rightLensRef;
+        var img = isLeft ? leftImageRef : rightImageRef;
+        var visible = isLeft ? leftLensVisible : rightLensVisible;
+        if (!visible) return;
+
+        // We adjust lens via inline styles using a backing dictionary since ElementReference needs JS to set styles.
+        // Instead, compute coordinates and bind them to style strings.
+        var posX = e.OffsetX;
+        var posY = e.OffsetY;
+        var lensSize = 160; // match CSS
+
+        if (isLeft)
+        {
+            leftLensStyle = BuildLensStyle(posX, posY, lensSize, ((currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) && !string.IsNullOrEmpty(preprocessedImageBase64) ? preprocessedImageBase64 : sourceImageBase64));
+        }
+        else
+        {
+            rightLensStyle = BuildLensStyle(posX, posY, lensSize, preprocessedImageBase64);
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private string BuildLensStyle(double mouseX, double mouseY, int lensSize, string? base64)
+    {
+        if (string.IsNullOrEmpty(base64)) return "display:none;";
+        var half = lensSize / 2.0;
+        var bgPosX = mouseX;
+        var bgPosY = mouseY;
+        // Place lens centered on cursor. Use transform to center via left/top.
+        return $"display:block; left:{mouseX - half}px; top:{mouseY - half}px; background-image:url('data:image/png;base64,{base64}'); background-position:{bgPosX}px {bgPosY}px;";
+    }
+
+    private string leftLensStyle = "display:none;";
+    private string rightLensStyle = "display:none;";
+
     public void Dispose()
     {
         updateTimer?.Dispose();
@@ -879,6 +1038,8 @@
         public string ContrastType { get; set; } = "sigmoidal";
         public double ContrastStrength { get; set; } = 3.0;
         public int ContrastMidpoint { get; set; } = 120;
+        public bool ApplyThreshold { get; set; } = false;
+        public int ThresholdPercent { get; set; } = 50;
     }
     
     private class OcrSettings
@@ -891,7 +1052,6 @@
     private class InferenceSettings
     {
         public string Model { get; set; } = "naver-clova-ix/donut-base-finetuned-cord-v2";
-        public string ModelType { get; set; } = "donut";
         public string Device { get; set; } = "auto";
     }
 }

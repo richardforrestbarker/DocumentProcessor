@@ -114,14 +114,12 @@ namespace DocumentProcessor.Tests
                 ImageBase64 = "img",
                 JobId = "job789",
                 Model = "model",
-                ModelType = "donut",
                 Device = "cpu"
             };
             Assert.Equal(ocrResult, req.OcrResult);
             Assert.Equal("img", req.ImageBase64);
             Assert.Equal("job789", req.JobId);
             Assert.Equal("model", req.Model);
-            Assert.Equal("donut", req.ModelType);
             Assert.Equal("cpu", req.Device);
         }
     }
