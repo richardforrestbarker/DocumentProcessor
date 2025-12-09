@@ -1,14 +1,13 @@
 """
-IDEFICS2 Model
+Qwen2-VL Model
 
-Implementation of IDEFICS2 (Image-aware Decoder Enhanced à la Flamingo with Interleaved Cross-attentionS)
-for receipt field extraction.
+Implementation of Qwen2-VL for document understanding and field extraction.
 
-IDEFICS2 is an open-source multimodal model that can understand images and text,
-making it suitable for document understanding tasks like receipt parsing.
+Qwen2-VL is Alibaba's vision-language model with strong performance on
+document understanding and multimodal tasks.
 
-License: Apache 2.0 (open source)
-Model source: https://huggingface.co/HuggingFaceM4/idefics2-8b
+License: Apache 2.0
+Model source: https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct
 """
 
 import logging
@@ -18,117 +17,78 @@ from .base import BaseModel
 
 logger = logging.getLogger(__name__)
 
-# Default confidence scores for generated outputs (generation models don't provide real confidence)
+# Default confidence scores
 DEFAULT_CONFIDENCE = 0.8
-FALLBACK_CONFIDENCE = 0.5
 
-# Prompt delimiter for extracting generated response
-PROMPT_DELIMITER = "Now analyze this document:"
+# Prompt for document extraction
+DOCUMENT_EXTRACTION_PROMPT = """Analyze this financial document and extract information in JSON format.
 
-# Prompt template for document extraction
-RECEIPT_EXTRACTION_PROMPT = """You are analyzing a financial document image. First identify the document type (receipt, invoice, bill, or other financial document), then extract relevant information in JSON format.
-
-For all documents, extract:
+Identify the document type and extract all relevant fields:
 - document_type: One of "receipt", "invoice", "bill", or "financial_document"
-- vendor_name: The business/company name
-- date: The transaction/document date
-- total_amount: The total amount
-- subtotal: The subtotal before tax (if visible)
-- tax_amount: The tax amount (if visible)
-- line_items: List of items with description, quantity, unit_price, and line_total
+- vendor_name: Business name
+- date: Document date
+- total_amount: Total amount
+- subtotal, tax_amount: If visible
+- line_items: Array with description, quantity, unit_price, line_total
 
-For invoices, also extract:
-- invoice_number: The invoice number
-- due_date: Payment due date
-- payment_terms: Payment terms (e.g., "Net 30")
-- customer_name: Customer or "Bill To" name
-- po_number: Purchase order number (if visible)
+For invoices: invoice_number, due_date, payment_terms, customer_name, po_number
+For bills: account_number, billing_period, amount_due
+For receipts: payment_method
 
-For bills, also extract:
-- account_number: Account number
-- billing_period: Billing period dates
-- amount_due: Amount due
-
-For receipts, also extract:
-- payment_method: Payment method used (cash, credit, etc.)
-
-Return only valid JSON, no additional text.
-
-Example output:
-{
-  "document_type": "invoice",
-  "vendor_name": "Company Name",
-  "date": "2024-01-15",
-  "invoice_number": "INV-12345",
-  "due_date": "2024-02-15",
-  "customer_name": "Client Name",
-  "total_amount": "1250.00",
-  "subtotal": "1150.00",
-  "tax_amount": "100.00",
-  "line_items": [
-    {"description": "Service 1", "quantity": 10, "unit_price": "100.00", "line_total": "1000.00"}
-  ]
-}
-
-Now analyze this document:"""
+Return only valid JSON, no additional text."""
 
 
-class IDEFICS2Model(BaseModel):
+class Qwen2VLModel(BaseModel):
     """
-    IDEFICS2 model for multimodal document understanding.
+    Qwen2-VL model for multimodal document understanding.
     
-    IDEFICS2 is a large multimodal model that combines vision and language
-    understanding. It can process images along with text prompts to generate
-    structured outputs.
+    Qwen2-VL is Alibaba's powerful vision-language model optimized for
+    various vision-language tasks including document understanding.
     
     Key features:
-    - Multimodal understanding (image + text)
-    - Instruction-following capabilities
+    - Strong vision-language understanding
+    - Efficient architecture
     - Apache 2.0 license (open source)
-    - 8B parameter version available for good performance/resource balance
+    - Multiple size variants
     
     Recommended models:
-    - HuggingFaceM4/idefics2-8b: Full 8B parameter model
-    - HuggingFaceM4/idefics2-8b-AWQ: 4-bit quantized for lower memory
+    - Qwen/Qwen2-VL-7B-Instruct: 7B parameter model
+    - Qwen/Qwen2-VL-2B-Instruct: 2B parameter model (lightweight)
     """
     
     def __init__(
         self,
-        model_name_or_path: str = "HuggingFaceM4/idefics2-8b",
+        model_name_or_path: str = "Qwen/Qwen2-VL-7B-Instruct",
         device: str = "cpu",
-        max_new_tokens: int = 512,
-        load_in_4bit: bool = False
+        max_new_tokens: int = 512
     ):
         """
-        Initialize IDEFICS2 model.
+        Initialize Qwen2-VL model.
         
         Args:
             model_name_or_path: HuggingFace model name or local path
             device: Device to run model on ('cpu' or 'cuda')
             max_new_tokens: Maximum tokens to generate
-            load_in_4bit: Whether to use 4-bit quantization (saves memory, requires GPU)
-            load_in_4bit: Whether to use 4-bit quantization (saves memory)
         """
         self.model_name_or_path = model_name_or_path
         self.device = device
         self.max_new_tokens = max_new_tokens
-        self.load_in_4bit = load_in_4bit
         
         self.model = None
         self.processor = None
         
-        logger.info(f"Initialized IDEFICS2Model with {model_name_or_path}")
+        logger.info(f"Initialized Qwen2VLModel with {model_name_or_path}")
     
     def load(self):
         """Load model and processor from HuggingFace."""
         if self.model is not None:
             return  # Already loaded
         
-        logger.info("Loading IDEFICS2 model components...")
+        logger.info("Loading Qwen2-VL model components...")
         
         try:
             import torch
-            from transformers import AutoProcessor, AutoModelForVision2Seq, BitsAndBytesConfig
+            from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
             
             # Load processor
             logger.info(f"Loading processor from {self.model_name_or_path}")
@@ -137,57 +97,32 @@ class IDEFICS2Model(BaseModel):
                 trust_remote_code=True
             )
             
-            # Configure quantization if requested
-            quantization_config = None
-            if self.load_in_4bit and self.device != "cpu":
-                try:
-                    quantization_config = BitsAndBytesConfig(
-                        load_in_4bit=True,
-                        bnb_4bit_quant_type="nf4",
-                        bnb_4bit_compute_dtype=torch.float16
-                    )
-                    logger.info("Using 4-bit quantization")
-                except Exception as e:
-                    logger.warning(f"4-bit quantization not available: {e}. Loading in full precision.")
-            
             # Load model
             logger.info(f"Loading model from {self.model_name_or_path}")
-            model_kwargs = {
-                "trust_remote_code": True,
-                "torch_dtype": torch.float16 if self.device != "cpu" else torch.float32,
-            }
-            
-            if quantization_config:
-                model_kwargs["quantization_config"] = quantization_config
-                model_kwargs["device_map"] = "auto"
-            
-            self.model = AutoModelForVision2Seq.from_pretrained(
+            self.model = Qwen2VLForConditionalGeneration.from_pretrained(
                 self.model_name_or_path,
-                **model_kwargs
+                trust_remote_code=True,
+                torch_dtype=torch.float16 if self.device != "cpu" else torch.float32,
             )
             
-            # Move to device if not using device_map
-            if not quantization_config:
-                self.model.to(self.device)
-            
+            # Move to device
+            self.model.to(self.device)
             self.model.eval()
             
-            logger.info(f"IDEFICS2 model loaded successfully")
+            logger.info(f"Qwen2-VL model loaded successfully on device: {self.device}")
             
         except ImportError as e:
             raise ImportError(
                 f"Required dependencies not installed: {e}. "
-                "Install with: pip install torch transformers accelerate bitsandbytes"
+                "Install with: pip install torch transformers"
             )
         except Exception as e:
-            logger.error(f"Failed to load IDEFICS2 model: {e}")
+            logger.error(f"Failed to load Qwen2-VL model: {e}")
             raise
     
     def tokenize(self, text: str) -> List[int]:
         """
-        Tokenize text using IDEFICS2 tokenizer.
-        
-        Note: IDEFICS2 is a generative model, this is for API compatibility.
+        Tokenize text using Qwen2-VL tokenizer.
         
         Args:
             text: Input text
@@ -212,9 +147,7 @@ class IDEFICS2Model(BaseModel):
         image: Any
     ) -> Dict[str, Any]:
         """
-        Run IDEFICS2 prediction on document image.
-        
-        Uses a carefully crafted prompt to extract receipt information.
+        Run Qwen2-VL prediction on document image.
         
         Args:
             token_ids: Ignored (kept for API compatibility)
@@ -222,7 +155,7 @@ class IDEFICS2Model(BaseModel):
             image: PIL Image or numpy array
             
         Returns:
-            Dictionary with parsed output from IDEFICS2
+            Dictionary with parsed output from Qwen2-VL
         """
         if self.model is None:
             self.load()
@@ -242,17 +175,32 @@ class IDEFICS2Model(BaseModel):
         if pil_image.mode != 'RGB':
             pil_image = pil_image.convert('RGB')
         
-        logger.info("Running IDEFICS2 inference...")
+        logger.info("Running Qwen2-VL inference...")
         
-        # Build inputs without chat template (some processors have no template)
-        inputs = self.processor(
-            text=RECEIPT_EXTRACTION_PROMPT,
-            images=[pil_image],
-            return_tensors="pt"
+        # Prepare messages
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": pil_image},
+                    {"type": "text", "text": DOCUMENT_EXTRACTION_PROMPT}
+                ]
+            }
+        ]
+        
+        # Process with Qwen2-VL processor
+        text = self.processor.apply_chat_template(
+            messages, 
+            tokenize=False, 
+            add_generation_prompt=True
         )
         
-        # Move inputs to device
-        inputs = {k: v.to(self.model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
+        inputs = self.processor(
+            text=[text],
+            images=[pil_image],
+            padding=True,
+            return_tensors="pt"
+        ).to(self.device)
         
         # Generate output
         with torch.no_grad():
@@ -260,37 +208,37 @@ class IDEFICS2Model(BaseModel):
                 **inputs,
                 max_new_tokens=self.max_new_tokens,
                 do_sample=False,
-                num_beams=1,
             )
         
         # Decode output
-        generated_text = self.processor.batch_decode(outputs, skip_special_tokens=True)[0]
+        generated_text = self.processor.batch_decode(
+            outputs,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False
+        )[0]
         
-        # Extract just the generated portion (after the prompt)
-        response = generated_text.split(PROMPT_DELIMITER)[-1].strip()
+        # Extract only the assistant's response
+        if "<|im_start|>assistant" in generated_text:
+            generated_text = generated_text.split("<|im_start|>assistant")[-1]
+        if "<|im_end|>" in generated_text:
+            generated_text = generated_text.split("<|im_end|>")[0]
         
-        logger.info(f"IDEFICS2 raw output: {response[:200]}...")
+        generated_text = generated_text.strip()
+        
+        logger.info(f"Qwen2-VL raw output: {generated_text[:200]}...")
         
         # Parse the JSON output
-        entities = self._parse_json_output(response)
+        entities = self._parse_json_output(generated_text)
         
         return {
-            "raw_output": response,
+            "raw_output": generated_text,
             "entities": entities,
             "predictions": [],
             "confidences": []
         }
     
     def _parse_json_output(self, response: str) -> Dict[str, Any]:
-        """
-        Parse JSON output from IDEFICS2.
-        
-        Args:
-            response: Raw model output
-            
-        Returns:
-            Dictionary with extracted entities
-        """
+        """Parse JSON output from Qwen2-VL."""
         import json
         import re
         
@@ -363,7 +311,6 @@ class IDEFICS2Model(BaseModel):
                 
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse JSON output: {e}")
-            entities = self._fallback_parse(response, entities)
         except Exception as e:
             logger.warning(f"Error parsing output: {e}")
         
@@ -374,8 +321,9 @@ class IDEFICS2Model(BaseModel):
         if value is None:
             return None
         import re
-        cleaned = re.sub(r'[^\d.]', '', str(value))
-        return cleaned if cleaned else None
+        # Extract valid decimal number (allows only one decimal point)
+        match = re.search(r'(\d+\.?\d*)', str(value))
+        return match.group(1) if match else None
     
     def _parse_int(self, value: Any) -> int:
         """Parse integer value."""
@@ -388,36 +336,6 @@ class IDEFICS2Model(BaseModel):
             digits = re.sub(r'[^\d]', '', str(value))
             return int(digits) if digits else 1
     
-    def _fallback_parse(self, response: str, entities: Dict[str, Any]) -> Dict[str, Any]:
-        """Fallback regex-based parsing."""
-        import re
-        
-        vendor_match = re.match(r'^([A-Z][A-Za-z\s&]+)', response)
-        if vendor_match:
-            entities["vendor_name"] = {
-                "value": vendor_match.group(1).strip(),
-                "confidence": 0.5,
-                "box": None
-            }
-        
-        date_match = re.search(r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})', response)
-        if date_match:
-            entities["date"] = {
-                "value": date_match.group(1),
-                "confidence": 0.6,
-                "box": None
-            }
-        
-        total_match = re.search(r'total[:\s]*\$?(\d+\.?\d*)', response, re.IGNORECASE)
-        if total_match:
-            entities["total_amount"] = {
-                "value": total_match.group(1),
-                "confidence": 0.6,
-                "box": None
-            }
-        
-        return entities
-    
     def predict_from_words(
         self,
         words: List[str],
@@ -427,12 +345,9 @@ class IDEFICS2Model(BaseModel):
         """
         Run prediction from an image.
         
-        Note: IDEFICS2 processes images directly with prompts.
-        OCR words can be included in the prompt for additional context.
-        
         Args:
-            words: OCR-detected words (can be used as context)
-            boxes: Bounding boxes (ignored)
+            words: Ignored (kept for API compatibility)
+            boxes: Ignored (kept for API compatibility)
             image: PIL Image or numpy array
             
         Returns:

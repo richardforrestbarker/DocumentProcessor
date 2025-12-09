@@ -13,9 +13,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_CONFIG = {
     'model': {
         'name_or_path': 'naver-clova-ix/donut-base-finetuned-cord-v2',
-        'type': 'donut',  # donut, idefics2, or layoutlmv3
+        'type': 'donut',  # donut, idefics2, phi3-vision, internvl, or qwen2-vl
         'device': 'auto',
-        'num_labels': 13,  # Only used for layoutlmv3
     },
     'ocr': {
         'engine': 'paddle',

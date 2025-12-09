@@ -1,14 +1,13 @@
 """
-IDEFICS2 Model
+Phi-3-Vision Model
 
-Implementation of IDEFICS2 (Image-aware Decoder Enhanced à la Flamingo with Interleaved Cross-attentionS)
-for receipt field extraction.
+Implementation of Microsoft Phi-3-Vision for document understanding and field extraction.
 
-IDEFICS2 is an open-source multimodal model that can understand images and text,
-making it suitable for document understanding tasks like receipt parsing.
+Phi-3-Vision is a lightweight multimodal model with strong vision-language capabilities,
+suitable for document processing tasks including receipts, invoices, and bills.
 
-License: Apache 2.0 (open source)
-Model source: https://huggingface.co/HuggingFaceM4/idefics2-8b
+License: MIT
+Model source: https://huggingface.co/microsoft/Phi-3-vision-128k-instruct
 """
 
 import logging
@@ -18,7 +17,7 @@ from .base import BaseModel
 
 logger = logging.getLogger(__name__)
 
-# Default confidence scores for generated outputs (generation models don't provide real confidence)
+# Default confidence scores for generated outputs
 DEFAULT_CONFIDENCE = 0.8
 FALLBACK_CONFIDENCE = 0.5
 
@@ -26,7 +25,8 @@ FALLBACK_CONFIDENCE = 0.5
 PROMPT_DELIMITER = "Now analyze this document:"
 
 # Prompt template for document extraction
-RECEIPT_EXTRACTION_PROMPT = """You are analyzing a financial document image. First identify the document type (receipt, invoice, bill, or other financial document), then extract relevant information in JSON format.
+DOCUMENT_EXTRACTION_PROMPT = """<|user|>
+You are analyzing a financial document image. First identify the document type (receipt, invoice, bill, or other financial document), then extract relevant information in JSON format.
 
 For all documents, extract:
 - document_type: One of "receipt", "invoice", "bill", or "financial_document"
@@ -50,85 +50,65 @@ For bills, also extract:
 - amount_due: Amount due
 
 For receipts, also extract:
-- payment_method: Payment method used (cash, credit, etc.)
+- payment_method: Payment method used
 
 Return only valid JSON, no additional text.
 
-Example output:
-{
-  "document_type": "invoice",
-  "vendor_name": "Company Name",
-  "date": "2024-01-15",
-  "invoice_number": "INV-12345",
-  "due_date": "2024-02-15",
-  "customer_name": "Client Name",
-  "total_amount": "1250.00",
-  "subtotal": "1150.00",
-  "tax_amount": "100.00",
-  "line_items": [
-    {"description": "Service 1", "quantity": 10, "unit_price": "100.00", "line_total": "1000.00"}
-  ]
-}
-
-Now analyze this document:"""
+Now analyze this document:<|end|>
+<|assistant|>
+"""
 
 
-class IDEFICS2Model(BaseModel):
+class Phi3VisionModel(BaseModel):
     """
-    IDEFICS2 model for multimodal document understanding.
+    Phi-3-Vision model for multimodal document understanding.
     
-    IDEFICS2 is a large multimodal model that combines vision and language
-    understanding. It can process images along with text prompts to generate
-    structured outputs.
+    Phi-3-Vision is Microsoft's lightweight vision-language model optimized
+    for efficiency while maintaining strong performance on vision tasks.
     
     Key features:
-    - Multimodal understanding (image + text)
-    - Instruction-following capabilities
-    - Apache 2.0 license (open source)
-    - 8B parameter version available for good performance/resource balance
+    - Lightweight and efficient (~7B parameters)
+    - 128k context window
+    - Strong vision-language understanding
+    - MIT license (open source)
     
     Recommended models:
-    - HuggingFaceM4/idefics2-8b: Full 8B parameter model
-    - HuggingFaceM4/idefics2-8b-AWQ: 4-bit quantized for lower memory
+    - microsoft/Phi-3-vision-128k-instruct: Main model with 128k context
     """
     
     def __init__(
         self,
-        model_name_or_path: str = "HuggingFaceM4/idefics2-8b",
+        model_name_or_path: str = "microsoft/Phi-3-vision-128k-instruct",
         device: str = "cpu",
-        max_new_tokens: int = 512,
-        load_in_4bit: bool = False
+        max_new_tokens: int = 512
     ):
         """
-        Initialize IDEFICS2 model.
+        Initialize Phi-3-Vision model.
         
         Args:
             model_name_or_path: HuggingFace model name or local path
             device: Device to run model on ('cpu' or 'cuda')
             max_new_tokens: Maximum tokens to generate
-            load_in_4bit: Whether to use 4-bit quantization (saves memory, requires GPU)
-            load_in_4bit: Whether to use 4-bit quantization (saves memory)
         """
         self.model_name_or_path = model_name_or_path
         self.device = device
         self.max_new_tokens = max_new_tokens
-        self.load_in_4bit = load_in_4bit
         
         self.model = None
         self.processor = None
         
-        logger.info(f"Initialized IDEFICS2Model with {model_name_or_path}")
+        logger.info(f"Initialized Phi3VisionModel with {model_name_or_path}")
     
     def load(self):
         """Load model and processor from HuggingFace."""
         if self.model is not None:
             return  # Already loaded
         
-        logger.info("Loading IDEFICS2 model components...")
+        logger.info("Loading Phi-3-Vision model components...")
         
         try:
             import torch
-            from transformers import AutoProcessor, AutoModelForVision2Seq, BitsAndBytesConfig
+            from transformers import AutoModelForCausalLM, AutoProcessor
             
             # Load processor
             logger.info(f"Loading processor from {self.model_name_or_path}")
@@ -137,57 +117,32 @@ class IDEFICS2Model(BaseModel):
                 trust_remote_code=True
             )
             
-            # Configure quantization if requested
-            quantization_config = None
-            if self.load_in_4bit and self.device != "cpu":
-                try:
-                    quantization_config = BitsAndBytesConfig(
-                        load_in_4bit=True,
-                        bnb_4bit_quant_type="nf4",
-                        bnb_4bit_compute_dtype=torch.float16
-                    )
-                    logger.info("Using 4-bit quantization")
-                except Exception as e:
-                    logger.warning(f"4-bit quantization not available: {e}. Loading in full precision.")
-            
             # Load model
             logger.info(f"Loading model from {self.model_name_or_path}")
-            model_kwargs = {
-                "trust_remote_code": True,
-                "torch_dtype": torch.float16 if self.device != "cpu" else torch.float32,
-            }
-            
-            if quantization_config:
-                model_kwargs["quantization_config"] = quantization_config
-                model_kwargs["device_map"] = "auto"
-            
-            self.model = AutoModelForVision2Seq.from_pretrained(
+            self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name_or_path,
-                **model_kwargs
+                trust_remote_code=True,
+                torch_dtype=torch.float16 if self.device != "cpu" else torch.float32,
             )
             
-            # Move to device if not using device_map
-            if not quantization_config:
-                self.model.to(self.device)
-            
+            # Move to device
+            self.model.to(self.device)
             self.model.eval()
             
-            logger.info(f"IDEFICS2 model loaded successfully")
+            logger.info(f"Phi-3-Vision model loaded successfully on device: {self.device}")
             
         except ImportError as e:
             raise ImportError(
                 f"Required dependencies not installed: {e}. "
-                "Install with: pip install torch transformers accelerate bitsandbytes"
+                "Install with: pip install torch transformers"
             )
         except Exception as e:
-            logger.error(f"Failed to load IDEFICS2 model: {e}")
+            logger.error(f"Failed to load Phi-3-Vision model: {e}")
             raise
     
     def tokenize(self, text: str) -> List[int]:
         """
-        Tokenize text using IDEFICS2 tokenizer.
-        
-        Note: IDEFICS2 is a generative model, this is for API compatibility.
+        Tokenize text using Phi-3-Vision tokenizer.
         
         Args:
             text: Input text
@@ -212,9 +167,7 @@ class IDEFICS2Model(BaseModel):
         image: Any
     ) -> Dict[str, Any]:
         """
-        Run IDEFICS2 prediction on document image.
-        
-        Uses a carefully crafted prompt to extract receipt information.
+        Run Phi-3-Vision prediction on document image.
         
         Args:
             token_ids: Ignored (kept for API compatibility)
@@ -222,7 +175,7 @@ class IDEFICS2Model(BaseModel):
             image: PIL Image or numpy array
             
         Returns:
-            Dictionary with parsed output from IDEFICS2
+            Dictionary with parsed output from Phi-3-Vision
         """
         if self.model is None:
             self.load()
@@ -242,17 +195,25 @@ class IDEFICS2Model(BaseModel):
         if pil_image.mode != 'RGB':
             pil_image = pil_image.convert('RGB')
         
-        logger.info("Running IDEFICS2 inference...")
+        logger.info("Running Phi-3-Vision inference...")
         
-        # Build inputs without chat template (some processors have no template)
-        inputs = self.processor(
-            text=RECEIPT_EXTRACTION_PROMPT,
-            images=[pil_image],
-            return_tensors="pt"
+        # Prepare messages for the model
+        messages = [
+            {"role": "user", "content": f"<|image_1|>\n{DOCUMENT_EXTRACTION_PROMPT}"}
+        ]
+        
+        # Process inputs
+        prompt = self.processor.tokenizer.apply_chat_template(
+            messages, 
+            tokenize=False, 
+            add_generation_prompt=True
         )
         
-        # Move inputs to device
-        inputs = {k: v.to(self.model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
+        inputs = self.processor(
+            prompt,
+            [pil_image],
+            return_tensors="pt"
+        ).to(self.device)
         
         # Generate output
         with torch.no_grad():
@@ -261,21 +222,22 @@ class IDEFICS2Model(BaseModel):
                 max_new_tokens=self.max_new_tokens,
                 do_sample=False,
                 num_beams=1,
+                eos_token_id=self.processor.tokenizer.eos_token_id,
             )
         
         # Decode output
-        generated_text = self.processor.batch_decode(outputs, skip_special_tokens=True)[0]
+        generated_text = self.processor.batch_decode(
+            outputs[:, inputs['input_ids'].shape[1]:],
+            skip_special_tokens=True
+        )[0]
         
-        # Extract just the generated portion (after the prompt)
-        response = generated_text.split(PROMPT_DELIMITER)[-1].strip()
-        
-        logger.info(f"IDEFICS2 raw output: {response[:200]}...")
+        logger.info(f"Phi-3-Vision raw output: {generated_text[:200]}...")
         
         # Parse the JSON output
-        entities = self._parse_json_output(response)
+        entities = self._parse_json_output(generated_text)
         
         return {
-            "raw_output": response,
+            "raw_output": generated_text,
             "entities": entities,
             "predictions": [],
             "confidences": []
@@ -283,7 +245,7 @@ class IDEFICS2Model(BaseModel):
     
     def _parse_json_output(self, response: str) -> Dict[str, Any]:
         """
-        Parse JSON output from IDEFICS2.
+        Parse JSON output from Phi-3-Vision.
         
         Args:
             response: Raw model output
@@ -374,8 +336,9 @@ class IDEFICS2Model(BaseModel):
         if value is None:
             return None
         import re
-        cleaned = re.sub(r'[^\d.]', '', str(value))
-        return cleaned if cleaned else None
+        # Extract valid decimal number (allows only one decimal point)
+        match = re.search(r'(\d+\.?\d*)', str(value))
+        return match.group(1) if match else None
     
     def _parse_int(self, value: Any) -> int:
         """Parse integer value."""
@@ -392,6 +355,18 @@ class IDEFICS2Model(BaseModel):
         """Fallback regex-based parsing."""
         import re
         
+        # Document type
+        doc_types = ['invoice', 'bill', 'receipt', 'financial']
+        for dtype in doc_types:
+            if dtype in response.lower():
+                entities["document_type"] = {
+                    "value": dtype if dtype != 'financial' else 'financial_document',
+                    "confidence": 0.5,
+                    "box": None
+                }
+                break
+        
+        # Vendor name (first capitalized phrase)
         vendor_match = re.match(r'^([A-Z][A-Za-z\s&]+)', response)
         if vendor_match:
             entities["vendor_name"] = {
@@ -400,6 +375,7 @@ class IDEFICS2Model(BaseModel):
                 "box": None
             }
         
+        # Date
         date_match = re.search(r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})', response)
         if date_match:
             entities["date"] = {
@@ -408,6 +384,7 @@ class IDEFICS2Model(BaseModel):
                 "box": None
             }
         
+        # Total amount
         total_match = re.search(r'total[:\s]*\$?(\d+\.?\d*)', response, re.IGNORECASE)
         if total_match:
             entities["total_amount"] = {
@@ -427,12 +404,9 @@ class IDEFICS2Model(BaseModel):
         """
         Run prediction from an image.
         
-        Note: IDEFICS2 processes images directly with prompts.
-        OCR words can be included in the prompt for additional context.
-        
         Args:
-            words: OCR-detected words (can be used as context)
-            boxes: Bounding boxes (ignored)
+            words: Ignored (kept for API compatibility)
+            boxes: Ignored (kept for API compatibility)
             image: PIL Image or numpy array
             
         Returns:

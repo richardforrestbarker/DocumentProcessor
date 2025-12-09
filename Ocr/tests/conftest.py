@@ -167,11 +167,11 @@ def mock_tesseract():
 
 
 @pytest.fixture
-def mock_layoutlm():
-    """Mock LayoutLMv3 model for testing without actual model."""
+def mock_model():
+    """Mock vision-language model for testing without actual model."""
     try:
         with patch('transformers.AutoProcessor') as mock_processor, \
-             patch('transformers.AutoModelForTokenClassification') as mock_model:
+             patch('transformers.AutoModelForCausalLM') as mock_model:
             
             # Mock processor
             processor_instance = MagicMock()

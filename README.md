@@ -1,11 +1,18 @@
 # DocumentProcessor - Document OCR Processing Component
 
-DocumentProcessor is a reusable .NET component that provides advanced document OCR (Optical Character Recognition) capabilities with machine learning-based field extraction. It enables applications to process document images (such as receipts, invoices, and forms) and extract structured data with high accuracy.
+DocumentProcessor is a reusable .NET component that provides advanced document OCR (Optical Character Recognition) capabilities with machine learning-based field extraction. It enables applications to process multiple types of financial document images (receipts, invoices, bills, and other financial documents) and extract structured data with high accuracy.
 
 ## Features
 
+- **Multi-Document Type Support**: Process receipts, invoices, bills, and general financial documents
+- **Automatic Document Classification**: Identifies document type with confidence levels
 - **Document OCR Processing**: Extract text and structured data from document images
-- **Machine Learning Field Extraction**: Identify and extract specific fields (vendor, date, amounts, line items)
+- **Extended Field Extraction**: Document-type-specific fields with confidence scores
+  - **Receipts**: vendor, date, total, tax, line items, payment method, cashier, register number
+  - **Invoices**: invoice number, due date, payment terms, customer info, PO number, billing details
+  - **Bills**: account number, billing period, previous balance, current charges, amount due
+  - **Common Fields**: vendor name, address, date, totals, taxes, discounts, shipping, line items
+- **Machine Learning Field Extraction**: Identify and extract specific fields using transformer models
 - **Multi-Phase Pipeline**: Separate preprocessing, OCR, and inference stages for optimal control
 - **RESTful API**: Easy integration via HTTP endpoints
 - **Blazor WebAssembly Component**: Ready-to-use UI component for document processing
@@ -19,7 +26,9 @@ DocumentProcessor is a reusable .NET component that provides advanced document O
 - **Blazor WebAssembly**: Interactive document processing UI component
 - **Python 3.12**: OCR and machine learning pipeline
 - **PaddleOCR / Tesseract**: Text detection and recognition
-- **Transformer Models**: LayoutLMv3, Donut, IDEFICS2 for field extraction
+- **Transformer Models**: Multiple commercially-licensed vision-language models for field extraction
+  - Donut (MIT), IDEFICS2 (Apache 2.0), Phi-3-Vision (MIT)
+  - InternVL (MIT), Qwen2-VL (Apache 2.0)
 - **ImageMagick**: Image preprocessing pipeline
 
 ## Prerequisites
@@ -567,19 +576,24 @@ python cli.py inference \
 
 ### OCR Output Format
 
-The OCR system returns structured JSON with the following schema:
+The OCR system returns structured JSON with the following schema. All fields include confidence levels:
 
 ```json
 {
   "job_id": "abc123",
   "status": "done",
+  "document_type": {
+    "value": "invoice",
+    "confidence": 0.92,
+    "box": null
+  },
   "pages": [
     {
       "page_number": 1,
-      "raw_ocr_text": "STORE NAME\n123 Main St...",
+      "raw_ocr_text": "COMPANY NAME\n123 Main St...",
       "words": [
         {
-          "text": "STORE",
+          "text": "COMPANY",
           "box": { "x0": 100, "y0": 50, "x1": 200, "y1": 80 },
           "confidence": 0.98
         }
@@ -587,7 +601,7 @@ The OCR system returns structured JSON with the following schema:
     }
   ],
   "vendor_name": {
-    "value": "STORE NAME",
+    "value": "COMPANY NAME",
     "confidence": 0.95,
     "box": { "x0": 100, "y0": 50, "x1": 300, "y1": 80 }
   },
@@ -597,17 +611,17 @@ The OCR system returns structured JSON with the following schema:
     "box": { "x0": 400, "y0": 50, "x1": 550, "y1": 80 }
   },
   "total_amount": {
-    "value": "25.99",
+    "value": "1250.00",
     "confidence": 0.96,
     "box": { "x0": 400, "y0": 500, "x1": 500, "y1": 530 }
   },
   "subtotal": {
-    "value": "23.85",
+    "value": "1150.00",
     "confidence": 0.94,
     "box": { "x0": 400, "y0": 450, "x1": 500, "y1": 480 }
   },
   "tax_amount": {
-    "value": "2.14",
+    "value": "100.00",
     "confidence": 0.93,
     "box": { "x0": 400, "y0": 475, "x1": 500, "y1": 505 }
   },
@@ -616,18 +630,40 @@ The OCR system returns structured JSON with the following schema:
     "confidence": 0.90,
     "box": null
   },
+  "invoice_number": {
+    "value": "INV-12345",
+    "confidence": 0.88,
+    "box": { "x0": 50, "y0": 100, "x1": 150, "y1": 130 }
+  },
+  "due_date": {
+    "value": "2024-02-15",
+    "confidence": 0.85,
+    "box": { "x0": 450, "y0": 100, "x1": 550, "y1": 130 }
+  },
+  "customer_name": {
+    "value": "Client Company",
+    "confidence": 0.87,
+    "box": { "x0": 50, "y0": 150, "x1": 250, "y1": 180 }
+  },
   "line_items": [
     {
-      "description": "Product 1",
-      "quantity": 1.0,
-      "unit_price": 12.99,
-      "line_total": 12.99,
+      "description": "Consulting Services",
+      "quantity": 10,
+      "unit_price": "100.00",
+      "line_total": "1000.00",
       "confidence": 0.89,
-      "box": { "x0": 50, "y0": 200, "x1": 550, "y1": 230 }
+      "box": { "x0": 50, "y0": 300, "x1": 550, "y1": 330 }
     }
   ]
 }
 ```
+
+**Document-Specific Fields:**
+
+- **Receipts**: `payment_method`, `cashier_name`, `register_number`
+- **Invoices**: `invoice_number`, `due_date`, `payment_terms`, `customer_name`, `customer_address`, `po_number`
+- **Bills**: `account_number`, `billing_period`, `previous_balance`, `current_charges`, `amount_due`
+- **All Documents**: `document_type`, `vendor_name`, `merchant_address`, `date`, `total_amount`, `subtotal`, `tax_amount`, `currency`, `line_items`, `discount`, `shipping`, `notes`
 
 ### Bounding Box Format
 

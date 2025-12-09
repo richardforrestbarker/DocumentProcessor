@@ -1,6 +1,6 @@
 # Document OCR Service
 
-Python-based document OCR service using PaddleOCR and open-source transformer models (Donut, IDEFICS2, LayoutLMv3) for structured data extraction from receipts, invoices, and other documents.
+Python-based document OCR service using PaddleOCR and commercially-licensed vision-language models (Donut, IDEFICS2, Phi-3-Vision, InternVL, Qwen2-VL) for structured data extraction from multiple financial document types including receipts, invoices, bills, and other financial documents.
 
 ## Python Requirements
 
@@ -11,26 +11,42 @@ Python-based document OCR service using PaddleOCR and open-source transformer mo
 
 This service provides OCR and structured field extraction from document images using:
 - **PaddleOCR (PP-StructureV3)**: Text detection and recognition
-- **Donut (default)**: OCR-free document understanding transformer (MIT license)
-- **IDEFICS2**: Multimodal vision-language model (Apache 2.0 license)
-- **LayoutLMv3**: Layout-aware field extraction (requires OCR first)
+- **Donut (default)**: OCR-free document understanding transformer (MIT license) - optimized for receipts
+- **IDEFICS2**: Multimodal vision-language model (Apache 2.0 license) - supports multiple document types
+- **Phi-3-Vision**: Lightweight vision-language model (MIT license) - efficient and balanced
+- **InternVL**: High-accuracy vision-language model (MIT license) - strong OCR capabilities
+- **Qwen2-VL**: Efficient vision-language model (Apache 2.0 license) - strong performance
 
 ## Features
 
+- **Multi-document type support**: Receipts, invoices, bills, and general financial documents
+- **Automatic document classification**: Identifies document type with confidence scores
+- **Extended field extraction**: Document-type-specific fields with confidence levels
 - Multi-page document processing
 - Token-to-bounding-box mapping
-- Configurable model selection (Donut, IDEFICS2, LayoutLMv3)
+- Configurable model selection (all commercially licensed)
 - GPU acceleration with CPU fallback
 - CLI interface for integration with .NET API
 - Open-source models with permissive licenses
 
 ## Supported Models
 
+All models have commercial-friendly open source licenses (MIT or Apache 2.0).
+
 | Model | License | OCR Required | Memory | Best For |
 |-------|---------|--------------|--------|----------|
-| Donut | MIT | No | ~2GB | Fast processing, document-specific |
-| IDEFICS2 | Apache 2.0 | No | ~16GB (4-bit: ~6GB) | High accuracy, flexible |
-| LayoutLMv3 | - | Yes | ~2GB | Token classification tasks |
+| Donut | MIT | No | ~2GB | Fast processing, receipt-specific |
+| IDEFICS2 | Apache 2.0 | No | ~16GB (4-bit: ~6GB) | High accuracy, multi-document types |
+| Phi-3-Vision | MIT | No | ~7GB | Efficient, balanced performance |
+| InternVL | MIT | No | ~8GB (2B: ~4GB) | High accuracy, strong OCR |
+| Qwen2-VL | Apache 2.0 | No | ~7GB (2B: ~4GB) | Strong performance, efficient |
+
+**Model Capabilities:**
+- **Donut** (naver-clova-ix/donut-base-finetuned-cord-v2): Best for receipts (CORD-v2 fine-tuned). Document type is inferred as "receipt". MIT license.
+- **IDEFICS2** (HuggingFaceM4/idefics2-8b): Supports all document types (receipts, invoices, bills, financial documents). Uses advanced prompting to extract document-specific fields. Apache 2.0 license.
+- **Phi-3-Vision** (microsoft/Phi-3-vision-128k-instruct): Microsoft's lightweight vision-language model with 128k context window. Good balance of efficiency and accuracy for all document types. MIT license.
+- **InternVL** (OpenGVLab/InternVL2-8B, InternVL2-4B, InternVL2-2B): Powerful vision-language model with strong OCR and document understanding. Available in multiple sizes. MIT license.
+- **Qwen2-VL** (Qwen/Qwen2-VL-7B-Instruct, Qwen2-VL-2B-Instruct): Alibaba's efficient vision-language model with strong performance on document tasks. Apache 2.0 license.
 
 ## Setup
 
@@ -160,16 +176,7 @@ huggingface-cli download HuggingFaceM4/idefics2-8b --local-dir ./models/idefics2
 huggingface-cli download HuggingFaceM4/idefics2-8b-AWQ --local-dir ./models/idefics2-8b-awq
 ```
 
-#### LayoutLMv3 (Legacy)
 
-LayoutLMv3 requires OCR to be run first.
-
-```bash
-huggingface-cli download microsoft/layoutlmv3-base --local-dir ./models/layoutlmv3-base
-3. Use the local path when running the CLI:
-   ```bash
-   python cli.py process --image receipt.jpg --model ./models/layoutlmv3-base
-   ```
 
 ### Verifying Installation
 
@@ -214,8 +221,14 @@ python cli.py process --image document.jpg --output result.json --model-type don
 # Use IDEFICS2 (multimodal, Apache 2.0 license, requires more GPU memory)
 python cli.py process --image document.jpg --output result.json --model-type idefics2 --device cuda
 
-# Use LayoutLMv3 (requires OCR first)
-python cli.py process --image document.jpg --output result.json --model-type layoutlmv3 --model microsoft/layoutlmv3-base
+# Use Phi-3-Vision (efficient, MIT license)
+python cli.py process --image document.jpg --output result.json --model microsoft/Phi-3-vision-128k-instruct
+
+# Use InternVL (high accuracy, MIT license)
+python cli.py process --image document.jpg --output result.json --model OpenGVLab/InternVL2-8B
+
+# Use Qwen2-VL (balanced, Apache 2.0 license)
+python cli.py process --image document.jpg --output result.json --model Qwen/Qwen2-VL-7B-Instruct
 ```
 
 Configure OCR engine and device:
@@ -255,22 +268,6 @@ The debug output helps diagnose issues in the processing pipeline:
 - **Missing text?** Examine OCR bounding boxes visualization
 - **Incorrect field extraction?** Review result bounding boxes to see what fields were identified
 
-### Python API
-
-```python
-from src.receipt_processor import ReceiptProcessor
-
-processor = ReceiptProcessor(
-    model_name="naver-clova-ix/donut-base-finetuned-cord-v2",
-    model_type="donut",
-    ocr_engine="paddle",
-    device="cuda"
-)
-
-result = processor.process_receipt(["document1.jpg", "document2.jpg"])
-print(result.to_json())
-```
-
 ## Configuration
 
 Configuration file: `config/config.yaml`
@@ -278,7 +275,7 @@ Configuration file: `config/config.yaml`
 ```yaml
 model:
   name_or_path: "naver-clova-ix/donut-base-finetuned-cord-v2"
-  type: "donut"  # donut, idefics2, or layoutlmv3
+  type: "donut"  # donut, idefics2, phi3-vision, internvl, or qwen2-vl
   device: "auto"  # auto, cuda, cpu
   
 ocr:
@@ -331,25 +328,32 @@ The image preprocessing pipeline supports configurable parameters via CLI or con
 
 ## Output Format
 
+All extracted fields include confidence levels. The output format varies based on document type:
+
 ```json
 {
   "job_id": "unique-job-id",
   "status": "done",
+  "document_type": {
+    "value": "invoice",
+    "confidence": 0.88,
+    "box": null
+  },
   "pages": [
     {
       "page_number": 1,
       "raw_ocr_text": "Full text from OCR...",
       "words": [
         {
-          "text": "TOTAL",
-          "box": {"x0": 100, "y0": 200, "x1": 200, "y1": 250},
+          "text": "INVOICE",
+          "box": {"x0": 100, "y0": 50, "x1": 200, "y1": 80},
           "confidence": 0.98
         }
       ]
     }
   ],
   "vendor_name": {
-    "value": "Sample Store",
+    "value": "Company Name",
     "confidence": 0.95,
     "box": {"x0": 50, "y0": 20, "x1": 300, "y1": 80}
   },
@@ -358,23 +362,84 @@ The image preprocessing pipeline supports configurable parameters via CLI or con
     "confidence": 0.92,
     "box": {"x0": 400, "y0": 30, "x1": 550, "y1": 70}
   },
+  "invoice_number": {
+    "value": "INV-2024-001",
+    "confidence": 0.87,
+    "box": {"x0": 50, "y0": 100, "x1": 200, "y1": 130}
+  },
+  "due_date": {
+    "value": "2024-02-15",
+    "confidence": 0.85,
+    "box": {"x0": 400, "y0": 100, "x1": 550, "y1": 130}
+  },
+  "customer_name": {
+    "value": "Client Company",
+    "confidence": 0.86,
+    "box": {"x0": 50, "y0": 150, "x1": 250, "y1": 180}
+  },
   "total_amount": {
-    "value": "45.99",
+    "value": "1250.00",
     "confidence": 0.96,
     "box": {"x0": 420, "y0": 600, "x1": 520, "y1": 650}
   },
+  "subtotal": {
+    "value": "1150.00",
+    "confidence": 0.94,
+    "box": {"x0": 420, "y0": 550, "x1": 520, "y1": 580}
+  },
+  "tax_amount": {
+    "value": "100.00",
+    "confidence": 0.93,
+    "box": {"x0": 420, "y0": 575, "x1": 520, "y1": 605}
+  },
   "line_items": [
     {
-      "description": "Product 1",
-      "quantity": 2,
-      "unit_price": 10.50,
-      "line_total": 21.00,
+      "description": "Consulting Services",
+      "quantity": 10,
+      "unit_price": "100.00",
+      "line_total": "1000.00",
       "box": {"x0": 50, "y0": 300, "x1": 550, "y1": 340},
       "confidence": 0.89
     }
   ]
 }
 ```
+
+### Document-Specific Fields
+
+**Common Fields (all document types):**
+- `document_type`: Document classification (receipt, invoice, bill, financial_document)
+- `vendor_name`: Business or merchant name
+- `merchant_address`: Business address
+- `date`: Document date
+- `total_amount`: Total amount
+- `subtotal`: Subtotal before tax
+- `tax_amount`: Tax amount
+- `currency`: Currency code (e.g., USD)
+- `line_items`: Array of line items with description, quantity, prices
+- `discount`: Discount amount
+- `shipping`: Shipping/delivery charges
+- `notes`: Additional notes
+
+**Invoice-Specific Fields:**
+- `invoice_number`: Invoice or reference number
+- `due_date`: Payment due date
+- `payment_terms`: Payment terms (e.g., "Net 30")
+- `customer_name`: Customer or "Bill To" name
+- `customer_address`: Customer address
+- `po_number`: Purchase order number
+
+**Bill-Specific Fields:**
+- `account_number`: Account number
+- `billing_period`: Billing period or statement period
+- `previous_balance`: Previous balance carried forward
+- `current_charges`: Current period charges
+- `amount_due`: Total amount due
+
+**Receipt-Specific Fields:**
+- `payment_method`: Payment method (cash, credit, debit, etc.)
+- `cashier_name`: Cashier or server name
+- `register_number`: Register or terminal number
 
 ## Architecture
 
@@ -391,7 +456,7 @@ The image preprocessing pipeline supports configurable parameters via CLI or con
 2. **Text Detection**: PaddleOCR detector finds text regions
 3. **OCR**: PaddleOCR recognizer extracts text with bounding boxes
 4. **Tokenization**: Split text into model tokens, map to boxes
-5. **Model Inference**: LayoutLMv3 identifies field types and entities
+5. **Model Inference**: Vision-language models identify field types and entities
 6. **Postprocessing**: Parse values, verify totals, merge multi-page results
 
 ### Manual Image Preprocessing
@@ -513,7 +578,7 @@ The test suite includes both unit tests and integration tests.
 2. **Integration Tests** (`tests/test_cli_integration.py`) - 21 tests
    - PaddleOCR text detection and recognition
    - Tesseract OCR fallback
-   - LayoutLMv3 model loading and inference
+   - Vision-language model loading and inference
    - Full pipeline end-to-end processing
    - Multi-page receipt handling
    - These tests run the actual models and require full dependencies
@@ -564,14 +629,6 @@ python -m pytest tests/ --cov=. --cov-report=term-missing
 ```
 
 ## Development
-
-### Fine-tuning LayoutLMv3
-
-See `docs/fine_tuning.md` for instructions on:
-- Preparing training data
-- Labeling documents
-- Training the model
-- Evaluating performance
 
 ### Adding New Models
 

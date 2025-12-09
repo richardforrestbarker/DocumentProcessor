@@ -3,7 +3,9 @@ using DocumentProcessor.Data;
 using DocumentProcessor.Data.Ocr;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 
 namespace DocumentProcessor.Api.Ocr
 {
@@ -20,16 +22,13 @@ namespace DocumentProcessor.Api.Ocr
         /// <param name="configuration">The application configuration</param>
         /// <returns>The service collection for chaining</returns>
         public static IServiceCollection AddOcrDocumentProcessing(
-            this IServiceCollection services, 
-            IConfiguration configuration)
+            this IServiceCollection services, IConfiguration config)
         {
-            // Configure OCR settings
-            var ocrConfig = configuration.GetRequiredSection("Ocr").Get<OcrConfiguration>()!;
-            services.AddSingleton(ocrConfig);
-
+            var ocrConfig = config!.GetSection("Ocr")!.Get<OcrConfiguration>()! ?? throw new ArgumentNullException("OCR configuration section is missing or invalid.");
+            Console.WriteLine($"OCR Configuration Loaded\n{JsonSerializer.Serialize(ocrConfig)}");
             // Register the document processor
-            services.AddSingleton<IDocumentProcessor, ServiceSideDocumentProcessor>();
-
+            services.AddSingleton<OcrConfiguration>(ocrConfig);
+            services.AddScoped<IDocumentProcessor, ServiceSideDocumentProcessor>();
             return services;
         }
 
