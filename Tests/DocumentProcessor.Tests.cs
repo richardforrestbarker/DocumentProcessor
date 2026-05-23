@@ -259,15 +259,24 @@ namespace DocumentProcessor.Tests
         [Fact]
         public async Task PreprocessImageAsync_ReturnsErrorOnException()
         {
-            var processor = new ClientSideDocumentProcessor(new FailingHttpClientFactory(), new FailingLoggerFactory());
+            var processor = new ClientSideDocumentProcessor(new ThrowingRequestHttpClientFactory(), new FailingLoggerFactory());
             var result = await processor.PreprocessImageAsync(new PreprocessingRequest { ImageBase64 = "", JobId = "job" });
             Assert.Equal("Error", result.Status);
             Assert.NotNull(result.Error);
         }
 
-        private class FailingHttpClientFactory : IHttpClientFactory
+        private sealed class ThrowingRequestHttpClientFactory : IHttpClientFactory
         {
-            public HttpClient CreateClient(string name) => throw new Exception("fail");
+            public HttpClient CreateClient(string name) => new(new ThrowingHttpMessageHandler())
+            {
+                BaseAddress = new Uri("https://localhost")
+            };
+        }
+
+        private sealed class ThrowingHttpMessageHandler : HttpMessageHandler
+        {
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+                throw new HttpRequestException("fail");
         }
         private class FailingLoggerFactory : ILoggerFactory
         {
