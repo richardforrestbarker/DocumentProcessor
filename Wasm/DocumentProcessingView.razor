@@ -1189,14 +1189,18 @@
 
     private const string PreprocessingExecutionModeStorageKey = "documentProcessor.preprocessingExecutionMode";
     private PreprocessingExecutionMode preprocessingExecutionMode = PreprocessingExecutionMode.Auto;
-    private bool isClientCapableForPreprocessing;
+    private bool isClientCapable;
+    private const int MinModernAndroidVersion = 12;
+    private const int MinModernIosVersion = 16;
+    private static readonly Regex AndroidVersionRegex = new(@"Android\s+(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex IosVersionRegex = new(@"OS\s+(\d+)[._]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private bool ShouldUseClientSidePreprocessing() =>
         preprocessingExecutionMode switch
         {
             PreprocessingExecutionMode.Client => true,
             PreprocessingExecutionMode.Server => false,
-            _ => isClientCapableForPreprocessing
+            _ => isClientCapable
         };
 
     private string GetEffectivePreprocessingLocationLabel() =>
@@ -1233,11 +1237,11 @@
         try
         {
             var capabilities = await JSRuntime.InvokeAsync<ClientCapabilitySnapshot>("documentProcessorConfig.getClientCapabilities");
-            isClientCapableForPreprocessing = EvaluateClientCapability(capabilities);
+            isClientCapable = EvaluateClientCapability(capabilities);
         }
         catch (Exception ex)
         {
-            isClientCapableForPreprocessing = false;
+            isClientCapable = false;
             Logger.LogWarning(ex, "Unable to detect browser capabilities for preprocessing; defaulting auto mode to server-side.");
         }
 
@@ -1291,18 +1295,18 @@
         var isIpad = userAgent.Contains("iPad", StringComparison.OrdinalIgnoreCase);
         var isMobile = isAndroid || isIphone || isIpad || userAgent.Contains("Mobile", StringComparison.OrdinalIgnoreCase);
 
-        var androidMajor = ParseMajorVersion(userAgent, @"Android\s+(\d+)");
-        var iosMajor = ParseMajorVersion(userAgent, @"OS\s+(\d+)[._]");
-        var modernMobile = (isAndroid && androidMajor >= 12) || ((isIphone || isIpad) && iosMajor >= 16);
+        var androidMajor = ParseMajorVersion(userAgent, AndroidVersionRegex);
+        var iosMajor = ParseMajorVersion(userAgent, IosVersionRegex);
+        var modernMobile = (isAndroid && androidMajor >= MinModernAndroidVersion) || ((isIphone || isIpad) && iosMajor >= MinModernIosVersion);
         var desktopCapable = !isMobile && (hardwareConcurrency >= 4 || memoryGb >= 4);
         var modernMobileCapable = modernMobile && (hardwareConcurrency >= 6 || memoryGb >= 4);
 
         return desktopCapable || modernMobileCapable;
     }
 
-    private static int ParseMajorVersion(string userAgent, string pattern)
+    private static int ParseMajorVersion(string userAgent, Regex regex)
     {
-        var match = Regex.Match(userAgent, pattern, RegexOptions.IgnoreCase);
+        var match = regex.Match(userAgent);
         if (!match.Success || match.Groups.Count < 2)
         {
             return 0;
