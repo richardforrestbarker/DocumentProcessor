@@ -276,7 +276,7 @@ namespace DocumentProcessor.Tests
         private sealed class ThrowingHttpMessageHandler : HttpMessageHandler
         {
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
-                throw new HttpRequestException("fail");
+                Task.FromException<HttpResponseMessage>(new HttpRequestException("fail"));
         }
         private class FailingLoggerFactory : ILoggerFactory
         {

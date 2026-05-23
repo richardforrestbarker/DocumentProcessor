@@ -1165,16 +1165,13 @@
     }
 
     private bool IsBrowserPreprocessingEnabled() =>
-        Configuration?.GetValue<bool?>("Application:features:UseBrowserPreprocessing") ?? true;
+        Configuration?.GetValue<bool?>("Application:features:UseBrowserPreprocessing") ?? false;
 
     private void RequestRender()
     {
-        try
+        if (isRenderHandleReady)
         {
             _ = InvokeAsync(StateHasChanged);
-        }
-        catch (InvalidOperationException)
-        {
         }
     }
 
@@ -1186,6 +1183,15 @@
 
     private string leftLensStyle = "display:none;";
     private string rightLensStyle = "display:none;";
+    private bool isRenderHandleReady;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isRenderHandleReady = true;
+        }
+    }
 
     public void Dispose()
     {
