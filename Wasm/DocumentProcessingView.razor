@@ -12,6 +12,7 @@
 @using Microsoft.Extensions.Configuration
 @using Microsoft.JSInterop
 @using System.Text.RegularExpressions
+@using System.Text.Json.Serialization
 @using DocumentProcessor.Wasm.Preprocessing
 
 @inject IDocumentProcessor DocumentProcessingClient
@@ -1312,8 +1313,13 @@
 
     private sealed class ClientCapabilitySnapshot
     {
+        [JsonPropertyName("hardwareConcurrency")]
         public int HardwareConcurrency { get; set; }
+
+        [JsonPropertyName("deviceMemoryGb")]
         public double DeviceMemoryGb { get; set; }
+
+        [JsonPropertyName("userAgent")]
         public string UserAgent { get; set; } = string.Empty;
     }
 
@@ -1335,12 +1341,12 @@
     private string rightLensStyle = "display:none;";
     private bool isRenderHandleReady;
 
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             isRenderHandleReady = true;
-            _ = InitializePreprocessingExecutionModeAsync();
+            await InitializePreprocessingExecutionModeAsync();
         }
     }
 
