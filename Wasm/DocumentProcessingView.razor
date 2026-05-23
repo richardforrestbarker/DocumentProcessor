@@ -10,12 +10,15 @@
 @using DocumentProcessor.Data.Messages;
 @using Microsoft.Extensions.Logging
 @using Microsoft.Extensions.Configuration
+@using Microsoft.JSInterop
+@using System.Text.RegularExpressions
 @using DocumentProcessor.Wasm.Preprocessing
 
 @inject IDocumentProcessor DocumentProcessingClient
 @inject IBrowserImagePreprocessor BrowserImagePreprocessor
 @inject IConfiguration Configuration
 @inject ILogger<DocumentProcessingView> Logger
+@inject IJSRuntime? JSRuntime
 @implements IDisposable
 
 <style>
@@ -290,6 +293,18 @@
                     <div class="col-12 mb-3 text-muted">
                         Aim for a clear, high-contrast black-and-white image. Deskew and denoise can help remove artifacts;
                         contrast settings enhance text legibility to improve OCR accuracy.
+                    </div>
+                    <div class="col-12 mb-3">
+                        <label for="preprocessingExecutionMode" class="form-label">Preprocessing execution</label>
+                        <InputSelect class="form-select" id="preprocessingExecutionMode"
+                                     @bind-Value="preprocessingExecutionMode" @bind-Value:after="OnPreprocessingExecutionModeChanged">
+                            <option value="@PreprocessingExecutionMode.Auto">Auto (use client only on capable devices)</option>
+                            <option value="@PreprocessingExecutionMode.Client">Client side (always browser)</option>
+                            <option value="@PreprocessingExecutionMode.Server">Server side (always API)</option>
+                        </InputSelect>
+                        <div class="form-text">
+                            Effective mode: <strong>@GetEffectivePreprocessingLocationLabel()</strong>
+                        </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-check mb-3">
@@ -798,7 +813,7 @@
 
         try
         {
-            if (IsBrowserPreprocessingEnabled() && BrowserImagePreprocessor != null)
+            if (ShouldUseClientSidePreprocessing() && BrowserImagePreprocessor != null)
             {
                 var browserResult = await BrowserImagePreprocessor.PreprocessAsync(sourceImageBase64, new BrowserPreprocessingSettings
                 {
@@ -905,7 +920,7 @@
         {
             // Run OCR
             var ocrInputBase64 = preprocessedImageBase64;
-            if (IsBrowserPreprocessingEnabled() && BrowserImagePreprocessor != null)
+            if (ShouldUseClientSidePreprocessing() && BrowserImagePreprocessor != null)
             {
                 ocrInputBase64 = await BrowserImagePreprocessor.ResampleForOcrAsync(preprocessedImageBase64, ocrSettings.TargetDpi);
             }
@@ -1164,8 +1179,143 @@
         return $"display:block; left:{mouseX - half}px; top:{mouseY - half}px; background-image:url('data:{mimeType};base64,{base64}'); background-position:{bgPosX}px {bgPosY}px;";
     }
 
-    private bool IsBrowserPreprocessingEnabled() =>
-        Configuration?.GetValue<bool?>("Application:features:UseBrowserPreprocessing") ?? false;
+    private enum PreprocessingExecutionMode
+    {
+        Auto,
+        Client,
+        Server
+    }
+
+    private const string PreprocessingExecutionModeStorageKey = "documentProcessor.preprocessingExecutionMode";
+    private PreprocessingExecutionMode preprocessingExecutionMode = PreprocessingExecutionMode.Auto;
+    private bool isClientCapableForPreprocessing;
+
+    private bool ShouldUseClientSidePreprocessing() =>
+        preprocessingExecutionMode switch
+        {
+            PreprocessingExecutionMode.Client => true,
+            PreprocessingExecutionMode.Server => false,
+            _ => isClientCapableForPreprocessing
+        };
+
+    private string GetEffectivePreprocessingLocationLabel() =>
+        ShouldUseClientSidePreprocessing() ? "Client side" : "Server side";
+
+    private async Task OnPreprocessingExecutionModeChanged()
+    {
+        await PersistPreprocessingExecutionModeOverrideAsync();
+        OnSettingsChanged();
+    }
+
+    private async Task InitializePreprocessingExecutionModeAsync()
+    {
+        preprocessingExecutionMode = GetConfiguredPreprocessingExecutionMode();
+
+        if (JSRuntime == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var storedMode = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", PreprocessingExecutionModeStorageKey);
+            if (TryParsePreprocessingExecutionMode(storedMode, out var parsedMode))
+            {
+                preprocessingExecutionMode = parsedMode;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Unable to read preprocessing execution mode from localStorage.");
+        }
+
+        try
+        {
+            var capabilities = await JSRuntime.InvokeAsync<ClientCapabilitySnapshot>("documentProcessorConfig.getClientCapabilities");
+            isClientCapableForPreprocessing = EvaluateClientCapability(capabilities);
+        }
+        catch (Exception ex)
+        {
+            isClientCapableForPreprocessing = false;
+            Logger.LogWarning(ex, "Unable to detect browser capabilities for preprocessing; defaulting auto mode to server-side.");
+        }
+
+        RequestRender();
+    }
+
+    private PreprocessingExecutionMode GetConfiguredPreprocessingExecutionMode()
+    {
+        if (TryParsePreprocessingExecutionMode(Configuration?.GetValue<string>("Application:clientConfiguration:ImagePreprocessingExecutionMode"), out var configuredMode))
+        {
+            return configuredMode;
+        }
+
+        var legacyFlag = Configuration?.GetValue<bool?>("Application:features:UseBrowserPreprocessing");
+        return legacyFlag switch
+        {
+            true => PreprocessingExecutionMode.Client,
+            false => PreprocessingExecutionMode.Server,
+            _ => PreprocessingExecutionMode.Auto
+        };
+    }
+
+    private async Task PersistPreprocessingExecutionModeOverrideAsync()
+    {
+        if (JSRuntime == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", PreprocessingExecutionModeStorageKey, preprocessingExecutionMode.ToString());
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Unable to persist preprocessing execution mode to localStorage.");
+        }
+    }
+
+    private static bool TryParsePreprocessingExecutionMode(string? value, out PreprocessingExecutionMode mode) =>
+        Enum.TryParse(value, ignoreCase: true, out mode);
+
+    private static bool EvaluateClientCapability(ClientCapabilitySnapshot capabilities)
+    {
+        var userAgent = capabilities.UserAgent ?? string.Empty;
+        var hardwareConcurrency = capabilities.HardwareConcurrency <= 0 ? 1 : capabilities.HardwareConcurrency;
+        var memoryGb = capabilities.DeviceMemoryGb;
+
+        var isAndroid = userAgent.Contains("Android", StringComparison.OrdinalIgnoreCase);
+        var isIphone = userAgent.Contains("iPhone", StringComparison.OrdinalIgnoreCase);
+        var isIpad = userAgent.Contains("iPad", StringComparison.OrdinalIgnoreCase);
+        var isMobile = isAndroid || isIphone || isIpad || userAgent.Contains("Mobile", StringComparison.OrdinalIgnoreCase);
+
+        var androidMajor = ParseMajorVersion(userAgent, @"Android\s+(\d+)");
+        var iosMajor = ParseMajorVersion(userAgent, @"OS\s+(\d+)[._]");
+        var modernMobile = (isAndroid && androidMajor >= 12) || ((isIphone || isIpad) && iosMajor >= 16);
+        var desktopCapable = !isMobile && (hardwareConcurrency >= 4 || memoryGb >= 4);
+        var modernMobileCapable = modernMobile && (hardwareConcurrency >= 6 || memoryGb >= 4);
+
+        return desktopCapable || modernMobileCapable;
+    }
+
+    private static int ParseMajorVersion(string userAgent, string pattern)
+    {
+        var match = Regex.Match(userAgent, pattern, RegexOptions.IgnoreCase);
+        if (!match.Success || match.Groups.Count < 2)
+        {
+            return 0;
+        }
+
+        return int.TryParse(match.Groups[1].Value, out var value) ? value : 0;
+    }
+
+    private sealed class ClientCapabilitySnapshot
+    {
+        public int HardwareConcurrency { get; set; }
+        public double DeviceMemoryGb { get; set; }
+        public string UserAgent { get; set; } = string.Empty;
+    }
 
     private void RequestRender()
     {
@@ -1190,6 +1340,7 @@
         if (firstRender)
         {
             isRenderHandleReady = true;
+            _ = InitializePreprocessingExecutionModeAsync();
         }
     }
 
