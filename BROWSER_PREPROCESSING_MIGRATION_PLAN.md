@@ -81,7 +81,7 @@ public sealed class BrowserImagePreprocessor
         if (s.Deskew)
         {
             var angle = EstimateSkewAngle(image, s.DeskewThreshold);
-            image.Mutate(ctx => ctx.Rotate(new RotateOptions { Angle = -angle, Sampler = KnownResamplers.Bicubic }));
+            image.Mutate(ctx => ctx.Rotate(-angle));
         }
 
         image.Mutate(ctx => ctx.Grayscale());
@@ -112,9 +112,10 @@ public sealed class BrowserImagePreprocessor
 ```csharp
     private static float EstimateSkewAngle(Image<Rgba32> img, int deskewThreshold)
     {
-        // Threshold controls binarization sensitivity used for projection scoring.
-        // 0-100 maps to byte threshold (aggressive at lower values).
-        byte binThreshold = (byte)Math.Clamp((deskewThreshold / 100.0) * 255.0, 0, 255);
+        // Keep semantics aligned with current UI guidance:
+        // lower threshold => more aggressive skew detection.
+        // Invert 0-100 into 255-0 for binarization cutoff.
+        byte binThreshold = (byte)Math.Clamp(255.0 - (deskewThreshold / 100.0) * 255.0, 0, 255);
 
         float bestAngle = 0f;
         double bestScore = double.MinValue;
@@ -217,12 +218,13 @@ public sealed class BrowserImagePreprocessor
 
         if (string.Equals(type, "linear", StringComparison.OrdinalIgnoreCase))
         {
+            ApplyLinearContrast(img, strength);
             return;
         }
 
-        // Sigmoidal mapping: output = 1 / (1 + exp(gain*(mid - input)))
-        // midpointPercent maps 0-200 -> 0.0-2.0 around default ~1.2
-        double mid = Math.Clamp(midpointPercent / 100.0, 0.0, 2.0);
+        // Sigmoidal mapping: output = 1 / (1 + exp(-gain*(input-mid)))
+        // midpointPercent maps 0-200 -> 0.0-1.0 (100 => 0.5 center).
+        double mid = Math.Clamp(midpointPercent / 200.0, 0.0, 1.0);
         double gain = Math.Clamp(strength, 0.1, 20.0);
 
         for (int y = 0; y < img.Height; y++)
@@ -231,8 +233,27 @@ public sealed class BrowserImagePreprocessor
             for (int x = 0; x < row.Length; x++)
             {
                 double input = row[x].R / 255.0;
-                double output = 1.0 / (1.0 + Math.Exp(-gain * (input - (mid / 2.0))));
+                double output = 1.0 / (1.0 + Math.Exp(-gain * (input - mid)));
                 byte nv = (byte)Math.Clamp((int)Math.Round(output * 255.0), 0, 255);
+                row[x] = new Rgba32(nv, nv, nv, 255);
+            }
+        }
+    }
+
+    private static void ApplyLinearContrast(Image<Rgba32> img, double strength)
+    {
+        // strength=1 keeps identity; >1 increases separation around mid-gray.
+        double factor = Math.Clamp(strength, 0.1, 10.0);
+
+        for (int y = 0; y < img.Height; y++)
+        {
+            var row = img.GetPixelRowSpan(y);
+            for (int x = 0; x < row.Length; x++)
+            {
+                double normalized = row[x].R / 255.0;
+                double centered = normalized - 0.5;
+                double stretched = centered * factor;
+                byte nv = (byte)Math.Clamp((int)Math.Round((stretched + 0.5) * 255.0), 0, 255);
                 row[x] = new Rgba32(nv, nv, nv, 255);
             }
         }
