@@ -1,0 +1,71 @@
+{
+  "dependencies": {
+    "passed": true,
+    "dependencies": {
+      "python": {
+        "status": "OK",
+        "version": "3.12.10"
+      },
+      "torch": {
+        "status": "OK",
+        "version": "2.6.0+cu124"
+      },
+      "cuda": {
+        "status": "OK",
+        "version": "12.4",
+        "device_count": 1,
+        "device_name": "NVIDIA GeForce RTX 4060 Laptop GPU"
+      },
+      "transformers": {
+        "status": "OK",
+        "version": "4.57.3"
+      },
+      "pillow": {
+        "status": "OK",
+        "version": "12.0.0"
+      },
+      "numpy": {
+        "status": "OK",
+        "version": "1.26.4"
+      }
+    }
+  },
+  "ocr": {
+    "passed": true,
+    "engines": {
+      "paddleocr": {
+        "status": "OK"
+      },
+      "tesseract": {
+        "status": "OK"
+      }
+    }
+  },
+  "availability": {
+    "models": {
+      "donut": {
+        "status": "CACHED",
+        "path": "naver-clova-ix/donut-base-finetuned-cord-v2"
+      },
+      "idefics2": {
+        "status": "CACHED",
+        "path": "HuggingFaceM4/idefics2-8b"
+      },
+      "phi3_vision": {
+        "status": "CACHED",
+        "path": "microsoft/Phi-3-vision-128k-instruct"
+      },
+      "internvl": {
+        "status": "CACHED",
+        "path": "OpenGVLab/InternVL2-8B"
+      },
+      "qwen2_vl": {
+        "status": "CACHED",
+        "path": "Qwen/Qwen2-VL-7B-Instruct"
+      }
+    }
+  },
+  "models": {
+    "skipped": true
+  }
+}

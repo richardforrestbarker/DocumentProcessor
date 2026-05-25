@@ -27,6 +27,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="cli.py" />
+    <Compile Include="smoke_test.py" />
     <Compile Include="src\models\donut.py" />
     <Compile Include="src\models\idefics2.py" />
     <Compile Include="src\models\internvl.py" />
@@ -46,6 +47,9 @@
     <Compile Include="tests\test_cli_integration.py" />
     <Compile Include="tests\test_cli_unit.py" />
     <Compile Include="tests\__init__.py" />
+    <Compile Include="test_cli_like_blazor.py" />
+    <Compile Include="test_single_model.py" />
+    <Compile Include="verify_models.py" />
     <Content Include="tests\test-receipts\receipt-1_ocr_result.json" />
     <Content Include="tests\test-receipts\receipt-2_ocr_result.json" />
     <Content Include="tests\test-receipts\receipt-3_ocr_result.json" />

@@ -57,3 +57,4 @@ nunit-*.xml
 Wasm/wwwroot/lib
 
 *.db
+/Ocr/tests/test-receipts

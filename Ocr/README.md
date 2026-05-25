@@ -52,50 +52,108 @@ All models have commercial-friendly open source licenses (MIT or Apache 2.0).
 
 ### Prerequisites
 
-- Python 3.9 or higher
-- CUDA-capable GPU (optional, but recommended for performance)
-- 8GB+ RAM (16GB+ recommended with GPU)
+- **Python 3.12** (required for all environments)
+- **CUDA-capable GPU** (optional, but **highly recommended** for 2-4x faster performance)
+- **8GB+ RAM** (16GB+ recommended for GPU acceleration)
+- **NVIDIA GPU with 6-8GB+ VRAM** (for GPU acceleration)
 
 ### Installation
+
+#### Step 1: Create Virtual Environment
 
 ```bash
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install dependencies
+# Activate virtual environment
+# On Windows:
+.\venv\Scripts\Activate.ps1
+# On Linux/macOS:
+source venv/bin/activate
+```
+
+#### Step 2: Install PyTorch (Choose GPU or CPU)
+
+**Option A: GPU Installation (Recommended - 2-4x faster)**
+
+Before installing, verify you have CUDA installed:
+
+```bash
+# Check if CUDA is available
+nvidia-smi
+
+# Check CUDA version
+nvcc --version
+```
+
+If CUDA is installed, install PyTorch with CUDA support:
+
+```bash
+# For CUDA 12.4+ (including CUDA 13.x)
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+
+# For CUDA 11.8
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+```
+
+**Option B: CPU-Only Installation (Slower, but works without GPU)**
+
+```bash
+# Install CPU-only version
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+```
+
+**Verify PyTorch Installation:**
+
+```bash
+python -c "import torch; print('PyTorch:', torch.__version__); print('CUDA available:', torch.cuda.is_available())"
+```
+
+Expected output:
+- **GPU**: `CUDA available: True`
+- **CPU**: `CUDA available: False`
+
+#### Step 3: Install Remaining Dependencies
+
+```bash
+# Install all other dependencies
 pip install -r requirements.txt
 ```
+
+**Note for Windows users:** The Ninja build system must **not** be on your PATH, or pip will use Ninja instead of setuptools, causing build failures for some dependencies.
 
 ### Installing OCR Dependencies
 
 #### PaddleOCR (Recommended - Primary OCR Engine)
 
-**On Linux/macOS:**
-```bash
-# Install PaddlePaddle (CPU)
-pip install paddlepaddle
+PaddleOCR installation depends on whether you want GPU or CPU support.
 
-# Or with GPU support (CUDA 11.8)
+**GPU Version (Recommended with CUDA):**
+
+```bash
+# For CUDA 12.x+
 pip install paddlepaddle-gpu
 
 # Install PaddleOCR
 pip install paddleocr
 ```
 
-**On Windows:**
+**CPU Version:**
+
 ```bash
 # Install PaddlePaddle (CPU)
 pip install paddlepaddle
 
 # Install PaddleOCR
 pip install paddleocr
-
-# Note: GPU support on Windows requires specific CUDA version
-# See: https://www.paddlepaddle.org.cn/install/quick
 ```
 
-PaddleOCR will automatically download required models on first use.
+**Note**: PaddleOCR will automatically download required models on first use (~300MB).
+
+**Verify PaddleOCR:**
+```bash
+python -c "import paddleocr; print('PaddleOCR installed successfully')"
+```
 
 #### ImageMagick (Required - Image Preprocessing)
 
@@ -180,6 +238,24 @@ huggingface-cli download HuggingFaceM4/idefics2-8b-AWQ --local-dir ./models/idef
 
 ### Verifying Installation
 
+Use the automated verification script:
+
+```bash
+# Quick verification (checks dependencies and cache)
+python verify_models.py --quick
+
+# Full verification (loads all models)
+python verify_models.py
+
+# With GPU testing
+python verify_models.py --gpu
+
+# Save results to JSON
+python verify_models.py --json results.json
+```
+
+Or manually verify:
+
 ```bash
 # Check all dependencies
 python -c "
@@ -188,13 +264,89 @@ import transformers
 import paddleocr
 print(f'PyTorch: {torch.__version__}')
 print(f'CUDA available: {torch.cuda.is_available()}')
+if torch.cuda.is_available():
+    print(f'CUDA version: {torch.version.cuda}')
+    print(f'GPU: {torch.cuda.get_device_name(0)}')
 print(f'Transformers: {transformers.__version__}')
 print('PaddleOCR: OK')
 "
 
-# Test with version command
+# Test with CLI version command
 python cli.py version
 ```
+
+**Expected output with GPU:**
+```
+PyTorch: 2.6.0+cu124
+CUDA available: True
+CUDA version: 12.4
+GPU: NVIDIA GeForce RTX 4060 Laptop GPU
+```
+
+**Expected output with CPU:**
+```
+PyTorch: 2.6.0+cpu
+CUDA available: False
+```
+
+### Installing/Switching Between GPU and CPU Versions
+
+#### Switching from CPU to GPU
+
+If you initially installed the CPU version but later want GPU acceleration:
+
+```powershell
+# Run the automated installation script (Windows)
+.\install_pytorch_cuda.ps1
+```
+
+Or manually:
+
+```bash
+# Uninstall CPU version
+pip uninstall -y torch torchvision torchaudio
+
+# Install GPU version
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+```
+
+#### Switching from GPU to CPU
+
+If you need to switch back to CPU-only:
+
+```bash
+# Uninstall GPU version
+pip uninstall -y torch torchvision torchaudio
+
+# Install CPU version
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+```
+
+### CUDA Installation Guide
+
+If you don't have CUDA installed and want GPU acceleration:
+
+1. **Check GPU compatibility**: Verify you have an NVIDIA GPU
+   ```bash
+   nvidia-smi
+   ```
+
+2. **Download CUDA Toolkit**: 
+   - Visit: https://developer.nvidia.com/cuda-downloads
+   - Download CUDA Toolkit 12.4+ or 13.x
+   - Follow the installation wizard
+
+3. **Verify CUDA installation**:
+   ```bash
+   nvcc --version
+   ```
+
+4. **Install PyTorch with CUDA** (see Step 2 above)
+
+5. **Run verification**:
+   ```bash
+   python verify_models.py --gpu
+   ```
 
 ## Usage
 
@@ -664,6 +816,128 @@ python cli.py process --image receipt.jpg --device cpu
    python cli.py process --image document.jpg --denoise --deskew
    ```
 4. Consider fine-tuning on your specific document formats
+
+## Model Verification
+
+### Automated Verification with PyTorch Check
+
+The verification script now automatically detects your hardware and recommends the correct PyTorch version:
+
+```bash
+# Interactive verification - checks hardware and offers to install correct PyTorch
+python verify_models.py --quick
+
+# The script will:
+# 1. Detect if you have NVIDIA GPU + CUDA Toolkit
+# 2. Check if PyTorch matches your hardware (GPU vs CPU)
+# 3. Offer to install the correct version if there's a mismatch
+# 4. Verify all dependencies and models
+```
+
+**Example Output:**
+```
+======================================================================
+PyTorch Installation Check
+======================================================================
+✓ NVIDIA GPU detected: NVIDIA GeForce RTX 4060 Laptop GPU
+✓ CUDA Toolkit detected: version 13.2
+✓ PyTorch with CUDA support is correctly installed
+```
+
+or if CPU-only is detected:
+```
+⚠ PyTorch is installed with CPU-only support, but you have CUDA hardware!
+  GPU: NVIDIA GeForce RTX 4060 Laptop GPU
+  CUDA: 13.2
+  Installing CUDA-enabled PyTorch will give you 2-4x faster performance.
+
+Would you like to install PyTorch with CUDA support now? (y/N):
+```
+
+### Verification Options
+
+```bash
+# Quick check with hardware detection and install offer
+python verify_models.py --quick
+
+# Force install CUDA version (if hardware detected)
+python verify_models.py --install-cuda
+
+# Skip PyTorch check and just verify dependencies
+python verify_models.py --quick --skip-pytorch-check
+
+# Full verification - loads and tests all models on GPU
+python verify_models.py --gpu
+
+# Save detailed results to JSON
+python verify_models.py --json results.json
+```
+
+### Quick Verification
+
+To verify that all models and dependencies are installed correctly, use the provided verification scripts:
+
+#### Smoke Test (Quick)
+```bash
+# Activate virtual environment
+.\venv\Scripts\Activate.ps1  # Windows
+source venv/bin/activate      # Linux/Mac
+
+# Run smoke test
+python smoke_test.py
+```
+
+The smoke test verifies:
+- Core dependencies (PyTorch, Transformers, Pillow)
+- OCR engines (PaddleOCR, Tesseract)
+- At least one model can load
+
+#### Full Verification
+```bash
+# Quick mode - checks dependencies and cache only
+python verify_models.py --quick
+
+# Full mode - loads and tests all cached models
+python verify_models.py
+
+# Save results to JSON
+python verify_models.py --json results.json
+
+# Test with GPU
+python verify_models.py --gpu
+```
+
+#### Test Individual Models
+```bash
+python test_single_model.py donut
+python test_single_model.py idefics2
+python test_single_model.py phi3_vision
+python test_single_model.py internvl
+python test_single_model.py qwen2_vl
+```
+
+### Verification Results
+
+See `VERIFICATION_REPORT.md` for the latest verification results, which includes:
+- ✅ Core dependencies status
+- ✅ OCR engine availability
+- ✅ Model cache status
+- ✅ Model loading test results
+- ✅ CLI functionality tests
+
+### Expected Output
+
+✅ **All tests passing:**
+```
+======================================================================
+✅ VERIFICATION PASSED
+All required components are working correctly!
+======================================================================
+```
+
+For detailed results, check:
+- `VERIFICATION_REPORT.md` - Human-readable summary
+- `quick_verification.json` - Machine-readable results
 
 ## License
 
