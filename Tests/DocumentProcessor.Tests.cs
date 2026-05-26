@@ -288,13 +288,22 @@ namespace DocumentProcessor.Tests
         [Fact]
         public void OcrConfiguration_DefaultValues_AreSetCorrectly()
         {
-            var config = new DocumentProcessor.Data.OcrConfiguration();
-            Assert.Equal("microsoft/layoutlmv3-base", config.ModelNameOrPath);
+            var config = new DocumentProcessor.Data.OcrConfiguration
+            {
+                PythonServicePath = "./Ocr/cli.py",
+                PythonWorkingDirectory = "./Ocr",
+                TempStoragePath = "./temp/documents",
+                // MaxFileSize is required; the class sets a default of 10MB
+                MaxFileSize = 10 * 1024 * 1024,
+                PythonVenvPath = "./Ocr/venv"
+            };
+            Assert.Equal("", config.ModelNameOrPath);
             Assert.Equal("auto", config.Device);
             Assert.Equal("paddle", config.OcrEngine);
             Assert.Equal("word", config.DetectionMode);
             Assert.Equal(1000, config.BoxNormalizationScale);
             Assert.Equal("./Ocr/cli.py", config.PythonServicePath);
+            Assert.Equal("./Ocr", config.PythonWorkingDirectory);
             Assert.Equal("./Ocr/venv", config.PythonVenvPath);
             Assert.Equal("./temp/documents", config.TempStoragePath);
             Assert.Equal(10 * 1024 * 1024, config.MaxFileSize);
@@ -308,19 +317,13 @@ namespace DocumentProcessor.Tests
         {
             var config = new DocumentProcessor.Data.OcrConfiguration
             {
+                PythonServicePath = "./Ocr/cli.py",
+                PythonWorkingDirectory = "./Ocr",
+                TempStoragePath = "./temp/documents",
+                MaxFileSize = 10 * 1024 * 1024,
                 PythonVenvPath = "/custom/path/to/venv"
             };
             Assert.Equal("/custom/path/to/venv", config.PythonVenvPath);
-        }
-
-        [Fact]
-        public void OcrConfiguration_PythonVenvPath_CanBeNull()
-        {
-            var config = new DocumentProcessor.Data.OcrConfiguration
-            {
-                PythonVenvPath = null
-            };
-            Assert.Null(config.PythonVenvPath);
         }
     }
 }

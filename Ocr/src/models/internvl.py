@@ -1,14 +1,13 @@
 """
-IDEFICS2 Model
+InternVL Model
 
-Implementation of IDEFICS2 (Image-aware Decoder Enhanced à la Flamingo with Interleaved Cross-attentionS)
-for receipt field extraction.
+Implementation of InternVL for document understanding and field extraction.
 
-IDEFICS2 is an open-source multimodal model that can understand images and text,
-making it suitable for document understanding tasks like receipt parsing.
+InternVL is a powerful open-source vision-language model with strong multimodal
+capabilities, suitable for complex document processing tasks.
 
-License: Apache 2.0 (open source)
-Model source: https://huggingface.co/HuggingFaceM4/idefics2-8b
+License: MIT
+Model source: https://huggingface.co/OpenGVLab/InternVL2-8B
 """
 
 import logging
@@ -18,137 +17,117 @@ from .base import BaseModel
 
 logger = logging.getLogger(__name__)
 
-# Default confidence scores for generated outputs (generation models don't provide real confidence)
+# Default confidence scores
 DEFAULT_CONFIDENCE = 0.8
 FALLBACK_CONFIDENCE = 0.5
 
-# Prompt delimiter for extracting generated response
-PROMPT_DELIMITER = "Now analyze this document:"
+# Prompt for document extraction
+DOCUMENT_EXTRACTION_PROMPT = """Analyze this financial document image and extract information in JSON format.
 
-# Prompt template for document extraction
-RECEIPT_EXTRACTION_PROMPT = """You are analyzing a financial document image. First identify the document type (receipt, invoice, bill, or other financial document), then extract relevant information in JSON format.
-
-For all documents, extract:
-- document_type: One of "receipt", "invoice", "bill", or "financial_document"
-- vendor_name: The business/company name
-- date: The transaction/document date
-- total_amount: The total amount
-- subtotal: The subtotal before tax (if visible)
-- tax_amount: The tax amount (if visible)
-- line_items: List of items with description, quantity, unit_price, and line_total
+Identify the document type (receipt, invoice, bill, or financial_document) and extract:
+- document_type: Type of document
+- vendor_name: Business/company name
+- date: Document date
+- total_amount: Total amount
+- subtotal: Subtotal before tax (if visible)
+- tax_amount: Tax amount (if visible)
+- line_items: Array of items with description, quantity, unit_price, line_total
 
 For invoices, also extract:
-- invoice_number: The invoice number
-- due_date: Payment due date
-- payment_terms: Payment terms (e.g., "Net 30")
-- customer_name: Customer or "Bill To" name
-- po_number: Purchase order number (if visible)
+- invoice_number, due_date, payment_terms, customer_name, po_number
 
 For bills, also extract:
-- account_number: Account number
-- billing_period: Billing period dates
-- amount_due: Amount due
+- account_number, billing_period, amount_due
 
 For receipts, also extract:
-- payment_method: Payment method used (cash, credit, etc.)
+- payment_method
 
-Return only valid JSON, no additional text.
-
-Example output:
-{
-  "document_type": "invoice",
-  "vendor_name": "Company Name",
-  "date": "2024-01-15",
-  "invoice_number": "INV-12345",
-  "due_date": "2024-02-15",
-  "customer_name": "Client Name",
-  "total_amount": "1250.00",
-  "subtotal": "1150.00",
-  "tax_amount": "100.00",
-  "line_items": [
-    {"description": "Service 1", "quantity": 10, "unit_price": "100.00", "line_total": "1000.00"}
-  ]
-}
-
-Now analyze this document:"""
+Return only valid JSON."""
 
 
-class IDEFICS2Model(BaseModel):
+class InternVLModel(BaseModel):
     """
-    IDEFICS2 model for multimodal document understanding.
+    InternVL model for multimodal document understanding.
     
-    IDEFICS2 is a large multimodal model that combines vision and language
-    understanding. It can process images along with text prompts to generate
-    structured outputs.
+    InternVL is a powerful vision-language model from OpenGVLab with
+    strong performance on vision-language tasks including document understanding.
     
     Key features:
-    - Multimodal understanding (image + text)
-    - Instruction-following capabilities
-    - Apache 2.0 license (open source)
-    - 8B parameter version available for good performance/resource balance
+    - High accuracy on vision-language tasks
+    - Strong OCR and document understanding capabilities
+    - Open source (MIT license)
+    - Multiple size variants available
     
     Recommended models:
-    - HuggingFaceM4/idefics2-8b: Full 8B parameter model
-    - HuggingFaceM4/idefics2-8b-AWQ: 4-bit quantized for lower memory
+    - OpenGVLab/InternVL2-8B: 8B parameter model (balanced)
+    - OpenGVLab/InternVL2-4B: 4B parameter model (efficient)
+    - OpenGVLab/InternVL2-2B: 2B parameter model (lightweight)
     """
     
     def __init__(
         self,
-        model_name_or_path: str = "HuggingFaceM4/idefics2-8b",
+        model_name_or_path: str = "OpenGVLab/InternVL2-4B",
         device: str = "cpu",
-        max_new_tokens: int = 512,
-        load_in_4bit: bool = False
+        max_new_tokens: int = 512
     ):
         """
-        Initialize IDEFICS2 model.
+        Initialize InternVL model.
         
         Args:
             model_name_or_path: HuggingFace model name or local path
             device: Device to run model on ('cpu' or 'cuda')
             max_new_tokens: Maximum tokens to generate
-            load_in_4bit: Whether to use 4-bit quantization (saves memory, requires GPU)
-            load_in_4bit: Whether to use 4-bit quantization (saves memory)
         """
         self.model_name_or_path = model_name_or_path
         self.device = device
         self.max_new_tokens = max_new_tokens
-        self.load_in_4bit = load_in_4bit
         
         self.model = None
-        self.processor = None
+        self.tokenizer = None
         
-        logger.info(f"Initialized IDEFICS2Model with {model_name_or_path}")
+        logger.info(f"Initialized InternVLModel with {model_name_or_path}")
     
     def load(self):
-        """Load model and processor from HuggingFace."""
+        """Load model and tokenizer from HuggingFace."""
         if self.model is not None:
             return  # Already loaded
         
-        logger.info("Loading IDEFICS2 model components...")
+        logger.info("Loading InternVL model components...")
         
         try:
             import torch
-            from transformers import AutoProcessor, AutoModelForVision2Seq, BitsAndBytesConfig
+            from transformers import AutoModel, AutoTokenizer, AutoConfig
+            from . import __init__ as models_init  # for get_hf_model_type
             
-            # Load processor
-            logger.info(f"Loading processor from {self.model_name_or_path}")
-            self.processor = AutoProcessor.from_pretrained(
-                self.model_name_or_path,
-                trust_remote_code=True
-            )
-            
-            # Configure quantization if requested
-            quantization_config = None
-            if self.load_in_4bit and self.device != "cpu":
+            # Resolve model_type from central mapping (kept internal)
+            try:
+                from . import get_hf_model_type
+            except Exception:
+                # Fallback import path if module resolution differs
+                from .__init__ import get_hf_model_type
+            model_type = get_hf_model_type(self.model_name_or_path)
+            config = None
+            if model_type:
+                logger.info(f"Resolved Hugging Face model_type '{model_type}' for {self.model_name_or_path}")
                 try:
-                    quantization_config = BitsAndBytesConfig(
-                        load_in_4bit=True,
-                        bnb_4bit_quant_type="nf4",
-                        bnb_4bit_compute_dtype=torch.float16
-                    )
-                    logger.info("Using 4-bit quantization")
-                except Exception as e:
-                    logger.warning(f"4-bit quantization not available: {e}. Loading in full precision.")
+                    config = AutoConfig.from_pretrained(self.model_name_or_path)
+                    # Inject model_type if missing
+                    if not getattr(config, "model_type", None):
+                        config.model_type = model_type
+                except Exception:
+                    # If loading config fails, proceed without explicit config and rely on trust_remote_code
+                    config = None
+            
+            # Load tokenizer
+            logger.info(f"Loading tokenizer from {self.model_name_or_path}")
+            tokenizer_kwargs = {"trust_remote_code": True}
+            # Only pass config if available
+            if config is not None:
+                tokenizer_kwargs["config"] = config
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                self.model_name_or_path,
+                **tokenizer_kwargs
+            )
             
             # Load model
             logger.info(f"Loading model from {self.model_name_or_path}")
@@ -156,38 +135,32 @@ class IDEFICS2Model(BaseModel):
                 "trust_remote_code": True,
                 "torch_dtype": torch.float16 if self.device != "cpu" else torch.float32,
             }
-            
-            if quantization_config:
-                model_kwargs["quantization_config"] = quantization_config
-                model_kwargs["device_map"] = "auto"
-            
-            self.model = AutoModelForVision2Seq.from_pretrained(
+            # Only pass config if available
+            if config is not None:
+                model_kwargs["config"] = config
+            self.model = AutoModel.from_pretrained(
                 self.model_name_or_path,
                 **model_kwargs
             )
             
-            # Move to device if not using device_map
-            if not quantization_config:
-                self.model.to(self.device)
-            
+            # Move to device
+            self.model.to(self.device)
             self.model.eval()
             
-            logger.info(f"IDEFICS2 model loaded successfully")
+            logger.info(f"InternVL model loaded successfully on device: {self.device}")
             
         except ImportError as e:
             raise ImportError(
                 f"Required dependencies not installed: {e}. "
-                "Install with: pip install torch transformers accelerate bitsandbytes"
+                "Install with: pip install torch transformers"
             )
         except Exception as e:
-            logger.error(f"Failed to load IDEFICS2 model: {e}")
+            logger.error(f"Failed to load InternVL model: {e}")
             raise
     
     def tokenize(self, text: str) -> List[int]:
         """
-        Tokenize text using IDEFICS2 tokenizer.
-        
-        Note: IDEFICS2 is a generative model, this is for API compatibility.
+        Tokenize text using InternVL tokenizer.
         
         Args:
             text: Input text
@@ -195,10 +168,10 @@ class IDEFICS2Model(BaseModel):
         Returns:
             List of token IDs
         """
-        if self.processor is None:
+        if self.tokenizer is None:
             self.load()
         
-        encoding = self.processor.tokenizer(
+        encoding = self.tokenizer(
             text,
             add_special_tokens=False,
             return_tensors=None
@@ -212,9 +185,7 @@ class IDEFICS2Model(BaseModel):
         image: Any
     ) -> Dict[str, Any]:
         """
-        Run IDEFICS2 prediction on document image.
-        
-        Uses a carefully crafted prompt to extract receipt information.
+        Run InternVL prediction on document image.
         
         Args:
             token_ids: Ignored (kept for API compatibility)
@@ -222,7 +193,7 @@ class IDEFICS2Model(BaseModel):
             image: PIL Image or numpy array
             
         Returns:
-            Dictionary with parsed output from IDEFICS2
+            Dictionary with parsed output from InternVL
         """
         if self.model is None:
             self.load()
@@ -242,59 +213,55 @@ class IDEFICS2Model(BaseModel):
         if pil_image.mode != 'RGB':
             pil_image = pil_image.convert('RGB')
         
-        logger.info("Running IDEFICS2 inference...")
+        logger.info("Running InternVL inference...")
         
-        # Build inputs without chat template (some processors have no template)
-        inputs = self.processor(
-            text=RECEIPT_EXTRACTION_PROMPT,
-            images=[pil_image],
-            return_tensors="pt"
-        )
-        
-        # Move inputs to device
-        inputs = {k: v.to(self.model.device) if hasattr(v, 'to') else v for k, v in inputs.items()}
-        
-        # Generate output
-        with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=self.max_new_tokens,
-                do_sample=False,
-                num_beams=1,
-            )
-        
-        # Decode output
-        generated_text = self.processor.batch_decode(outputs, skip_special_tokens=True)[0]
-        
-        # Extract just the generated portion (after the prompt)
-        response = generated_text.split(PROMPT_DELIMITER)[-1].strip()
-        
-        logger.info(f"IDEFICS2 raw output: {response[:200]}...")
-        
-        # Parse the JSON output
-        entities = self._parse_json_output(response)
-        
-        return {
-            "raw_output": response,
-            "entities": entities,
-            "predictions": [],
-            "confidences": []
+        # Generate with InternVL's chat API
+        generation_config = {
+            'max_new_tokens': self.max_new_tokens,
+            'do_sample': False,
         }
-    
-    def _parse_json_output(self, response: str) -> Dict[str, Any]:
-        """
-        Parse JSON output from IDEFICS2.
         
-        Args:
-            response: Raw model output
+        try:
+            # InternVL uses a chat-based interface
+            response = self.model.chat(
+                self.tokenizer,
+                pil_image,
+                DOCUMENT_EXTRACTION_PROMPT,
+                generation_config
+            )
             
-        Returns:
-            Dictionary with extracted entities
-        """
-        import json
-        import re
-        
-        entities = {
+            logger.info(f"InternVL raw output: {response[:200]}...")
+            
+            # Parse the JSON output
+            entities = self._parse_json_output(response)
+            
+            return {
+                "raw_output": response,
+                "entities": entities,
+                "predictions": [],
+                "confidences": []
+            }
+        except AttributeError as e:
+            # Model doesn't support chat interface
+            logger.error(f"InternVL model does not support chat interface: {e}")
+            raise
+        except RuntimeError as e:
+            # CUDA or memory errors
+            logger.error(f"Runtime error during InternVL inference: {e}")
+            raise
+        except Exception as e:
+            # Log unexpected errors but provide fallback
+            logger.warning(f"Unexpected error during InternVL inference: {e}")
+            return {
+                "raw_output": "",
+                "entities": self._get_empty_entities(),
+                "predictions": [],
+                "confidences": []
+            }
+    
+    def _get_empty_entities(self) -> Dict[str, Any]:
+        """Get empty entities structure."""
+        return {
             "document_type": None,
             "vendor_name": None,
             "date": None,
@@ -312,6 +279,21 @@ class IDEFICS2Model(BaseModel):
             "amount_due": None,
             "payment_method": None
         }
+    
+    def _parse_json_output(self, response: str) -> Dict[str, Any]:
+        """
+        Parse JSON output from InternVL.
+        
+        Args:
+            response: Raw model output
+            
+        Returns:
+            Dictionary with extracted entities
+        """
+        import json
+        import re
+        
+        entities = self._get_empty_entities()
         
         try:
             # Try to find JSON in the response
@@ -374,8 +356,9 @@ class IDEFICS2Model(BaseModel):
         if value is None:
             return None
         import re
-        cleaned = re.sub(r'[^\d.]', '', str(value))
-        return cleaned if cleaned else None
+        # Extract valid decimal number (allows only one decimal point)
+        match = re.search(r'(\d+\.?\d*)', str(value))
+        return match.group(1) if match else None
     
     def _parse_int(self, value: Any) -> int:
         """Parse integer value."""
@@ -392,6 +375,18 @@ class IDEFICS2Model(BaseModel):
         """Fallback regex-based parsing."""
         import re
         
+        # Document type
+        doc_types = ['invoice', 'bill', 'receipt', 'financial']
+        for dtype in doc_types:
+            if dtype in response.lower():
+                entities["document_type"] = {
+                    "value": dtype if dtype != 'financial' else 'financial_document',
+                    "confidence": 0.5,
+                    "box": None
+                }
+                break
+        
+        # Vendor name
         vendor_match = re.match(r'^([A-Z][A-Za-z\s&]+)', response)
         if vendor_match:
             entities["vendor_name"] = {
@@ -400,6 +395,7 @@ class IDEFICS2Model(BaseModel):
                 "box": None
             }
         
+        # Date
         date_match = re.search(r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})', response)
         if date_match:
             entities["date"] = {
@@ -408,6 +404,7 @@ class IDEFICS2Model(BaseModel):
                 "box": None
             }
         
+        # Total amount
         total_match = re.search(r'total[:\s]*\$?(\d+\.?\d*)', response, re.IGNORECASE)
         if total_match:
             entities["total_amount"] = {
@@ -427,15 +424,12 @@ class IDEFICS2Model(BaseModel):
         """
         Run prediction from an image.
         
-        Note: IDEFICS2 processes images directly with prompts.
-        OCR words can be included in the prompt for additional context.
-        
         Args:
-            words: OCR-detected words (can be used as context)
-            boxes: Bounding boxes (ignored)
+            words: Ignored (kept for API compatibility)
+            boxes: Ignored (kept for API compatibility)
             image: PIL Image or numpy array
             
-        Returns:
-            Dictionary with predictions and extracted entities
+            Returns:
+                Dictionary with predictions and extracted entities
         """
         return self.predict([], [], image)
