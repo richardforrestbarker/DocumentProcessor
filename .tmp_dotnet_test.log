@@ -1,0 +1,80 @@
+  Determining projects to restore...
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Example/Example.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g94r-2vxg-569j [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Api/Api.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g94r-2vxg-569j [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/ServiceDefaults/ServiceDefaults.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g94r-2vxg-569j [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/ServiceDefaults/ServiceDefaults.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-4625-4j76-fww9 [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Api/Api.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-4625-4j76-fww9 [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Example/Example.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-4625-4j76-fww9 [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/ServiceDefaults/ServiceDefaults.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-mr8r-92fq-pj8p [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/ServiceDefaults/ServiceDefaults.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-q834-8qmm-v933 [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Example/Example.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-mr8r-92fq-pj8p [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Api/Api.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-mr8r-92fq-pj8p [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Example/Example.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-q834-8qmm-v933 [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Api/Api.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-q834-8qmm-v933 [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/DocumentProcessor.Tests.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g94r-2vxg-569j [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/DocumentProcessor.Tests.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-4625-4j76-fww9 [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/DocumentProcessor.Tests.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-mr8r-92fq-pj8p [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/DocumentProcessor.Tests.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-q834-8qmm-v933 [/tmp/workspace/richardforrestbarker/DocumentProcessor/DocumentProcessor.sln]
+  All projects are up-to-date for restore.
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/DocumentProcessor.Tests.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g94r-2vxg-569j
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/DocumentProcessor.Tests.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-4625-4j76-fww9
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/DocumentProcessor.Tests.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-mr8r-92fq-pj8p
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/DocumentProcessor.Tests.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-q834-8qmm-v933
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Api/Api.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g94r-2vxg-569j
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Api/Api.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-4625-4j76-fww9
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Api/Api.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-mr8r-92fq-pj8p
+/tmp/workspace/richardforrestbarker/DocumentProcessor/Api/Api.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-q834-8qmm-v933
+/tmp/workspace/richardforrestbarker/DocumentProcessor/ServiceDefaults/ServiceDefaults.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g94r-2vxg-569j
+/tmp/workspace/richardforrestbarker/DocumentProcessor/ServiceDefaults/ServiceDefaults.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-4625-4j76-fww9
+/tmp/workspace/richardforrestbarker/DocumentProcessor/ServiceDefaults/ServiceDefaults.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-mr8r-92fq-pj8p
+/tmp/workspace/richardforrestbarker/DocumentProcessor/ServiceDefaults/ServiceDefaults.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.14.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-q834-8qmm-v933
+  Data -> /tmp/workspace/richardforrestbarker/DocumentProcessor/Data/bin/Debug/net10.0/Data.dll
+  ServiceDefaults -> /tmp/workspace/richardforrestbarker/DocumentProcessor/ServiceDefaults/bin/Debug/net10.0/ServiceDefaults.dll
+  Api -> /tmp/workspace/richardforrestbarker/DocumentProcessor/Api/bin/Debug/net10.0/Api.dll
+  Wasm -> /tmp/workspace/richardforrestbarker/DocumentProcessor/Wasm/bin/Debug/net10.0/Wasm.dll
+  DocumentProcessor.Tests -> /tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/bin/Debug/net10.0/DocumentProcessor.Tests.dll
+Test run for /tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/bin/Debug/net10.0/DocumentProcessor.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.47]     DocumentProcessor.Tests.DocumentProcessingViewLogicTests.OnInitialized_WithInitialImage_TriggersPreprocessing [FAIL]
+[xUnit.net 00:00:00.48]     DocumentProcessor.Tests.ClientSideDocumentProcessorTests.PreprocessImageAsync_ReturnsErrorOnException [FAIL]
+[xUnit.net 00:00:00.48]     DocumentProcessor.Tests.DocumentProcessingViewLogicTests.HandleFileSelection_RejectsLargeFile [FAIL]
+[xUnit.net 00:00:00.49]     DocumentProcessor.Tests.DocumentProcessingViewLogicTests.HandleFileSelection_RejectsNonImageFile [FAIL]
+  Failed DocumentProcessor.Tests.DocumentProcessingViewLogicTests.OnInitialized_WithInitialImage_TriggersPreprocessing [18 ms]
+  Error Message:
+   System.InvalidOperationException : The render handle is not yet assigned.
+  Stack Trace:
+     at Microsoft.AspNetCore.Components.RenderHandle.ThrowNotInitialized()
+   at Microsoft.AspNetCore.Components.ComponentBase.InvokeAsync(Action workItem)
+   at DocumentProcessor.Wasm.Components.DocumentProcessingView.StartTimer() in /tmp/workspace/richardforrestbarker/DocumentProcessor/Wasm/DocumentProcessingView.razor:line 705
+   at DocumentProcessor.Wasm.Components.DocumentProcessingView.OnSettingsChanged() in /tmp/workspace/richardforrestbarker/DocumentProcessor/Wasm/DocumentProcessingView.razor:line 684
+   at DocumentProcessor.Wasm.Components.DocumentProcessingView.OnInitialized() in /tmp/workspace/richardforrestbarker/DocumentProcessor/Wasm/DocumentProcessingView.razor:line 606
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed DocumentProcessor.Tests.ClientSideDocumentProcessorTests.PreprocessImageAsync_ReturnsErrorOnException [2 ms]
+  Error Message:
+   System.Exception : fail
+  Stack Trace:
+     at DocumentProcessor.Tests.ClientSideDocumentProcessorTests.FailingHttpClientFactory.CreateClient(String name) in /tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/DocumentProcessor.Tests.cs:line 270
+   at DocumentProcessor.Clients.ClientSideDocumentProcessor..ctor(IHttpClientFactory clientFactory, ILoggerFactory loggerFactory) in /tmp/workspace/richardforrestbarker/DocumentProcessor/Wasm/ClientSideDocumentProcessor.cs:line 17
+   at DocumentProcessor.Tests.ClientSideDocumentProcessorTests.PreprocessImageAsync_ReturnsErrorOnException() in /tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/DocumentProcessor.Tests.cs:line 262
+--- End of stack trace from previous location ---
+  Failed DocumentProcessor.Tests.DocumentProcessingViewLogicTests.HandleFileSelection_RejectsLargeFile [9 ms]
+  Error Message:
+   System.InvalidOperationException : The render handle is not yet assigned.
+  Stack Trace:
+     at Microsoft.AspNetCore.Components.RenderHandle.ThrowNotInitialized()
+   at Microsoft.AspNetCore.Components.ComponentBase.InvokeAsync(Action workItem)
+   at DocumentProcessor.Wasm.Components.DocumentProcessingView.HandleFileSelection(InputFileChangeEventArgs e) in /tmp/workspace/richardforrestbarker/DocumentProcessor/Wasm/DocumentProcessingView.razor:line 674
+   at DocumentProcessor.Tests.DocumentProcessingViewLogicTests.HandleFileSelection_RejectsLargeFile() in /tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/DocumentProcessor.Tests.cs:line 202
+--- End of stack trace from previous location ---
+  Failed DocumentProcessor.Tests.DocumentProcessingViewLogicTests.HandleFileSelection_RejectsNonImageFile [1 ms]
+  Error Message:
+   System.InvalidOperationException : The render handle is not yet assigned.
+  Stack Trace:
+     at Microsoft.AspNetCore.Components.RenderHandle.ThrowNotInitialized()
+   at Microsoft.AspNetCore.Components.ComponentBase.InvokeAsync(Action workItem)
+   at DocumentProcessor.Wasm.Components.DocumentProcessingView.HandleFileSelection(InputFileChangeEventArgs e) in /tmp/workspace/richardforrestbarker/DocumentProcessor/Wasm/DocumentProcessingView.razor:line 674
+   at DocumentProcessor.Tests.DocumentProcessingViewLogicTests.HandleFileSelection_RejectsNonImageFile() in /tmp/workspace/richardforrestbarker/DocumentProcessor/Tests/DocumentProcessor.Tests.cs:line 219
+--- End of stack trace from previous location ---
+
+Failed!  - Failed:     4, Passed:    10, Skipped:     0, Total:    14, Duration: 195 ms - DocumentProcessor.Tests.dll (net10.0)

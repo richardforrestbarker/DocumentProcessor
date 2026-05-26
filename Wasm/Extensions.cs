@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Json;
 using System.Text.Json;
+using DocumentProcessor.Wasm.Preprocessing;
 
 namespace DocumentProcessor.Wasm
 {
@@ -36,6 +37,7 @@ namespace DocumentProcessor.Wasm
 
 
             services.AddScoped<IDocumentProcessor, ClientSideDocumentProcessor>();
+            services.AddScoped<IBrowserImagePreprocessor, BrowserImagePreprocessor>();
             services.AddTransient<ClientErrorHandlingHttpMessageHandler>();
             return services;
         }

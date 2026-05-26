@@ -9,9 +9,17 @@
 @using DocumentProcessor.Data.Ocr.Messages;
 @using DocumentProcessor.Data.Messages;
 @using Microsoft.Extensions.Logging
+@using Microsoft.Extensions.Configuration
+@using Microsoft.JSInterop
+@using System.Text.RegularExpressions
+@using System.Text.Json.Serialization
+@using DocumentProcessor.Wasm.Preprocessing
 
 @inject IDocumentProcessor DocumentProcessingClient
+@inject IBrowserImagePreprocessor BrowserImagePreprocessor
+@inject IConfiguration Configuration
 @inject ILogger<DocumentProcessingView> Logger
+@inject IJSRuntime? JSRuntime
 @implements IDisposable
 
 <style>
@@ -95,7 +103,7 @@
                              @onmousemove="(e) => OnMagnifierMove(e, true)"
                              @onmouseenter="() => ShowMagnifier(true)"
                              @onmouseleave="() => HideMagnifier(true)">
-                            <img src="data:image/png;base64,@((currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) && !string.IsNullOrEmpty(preprocessedImageBase64) ? preprocessedImageBase64 : sourceImageBase64)"
+                            <img src="@BuildDataUri(((currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) && !string.IsNullOrEmpty(preprocessedImageBase64) ? preprocessedImageBase64 : sourceImageBase64), (currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) && !string.IsNullOrEmpty(preprocessedImageBase64) ? preprocessedImageMimeType : sourceImageMimeType)"
                                  class="img-fluid magnifier-image"
                                  alt="@((currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) ? "Preprocessing Result" : "Source Image")"
                                  @ref="leftImageRef" />
@@ -191,7 +199,7 @@
                              @onmousemove="(e) => OnMagnifierMove(e, false)"
                              @onmouseenter="() => ShowMagnifier(false)"
                              @onmouseleave="() => HideMagnifier(false)">
-                            <img src="data:image/png;base64,@preprocessedImageBase64"
+                            <img src="@BuildDataUri(preprocessedImageBase64, preprocessedImageMimeType)"
                                  class="img-fluid magnifier-image"
                                  alt="Preprocessed Image"
                                  @ref="rightImageRef" />
@@ -286,6 +294,18 @@
                     <div class="col-12 mb-3 text-muted">
                         Aim for a clear, high-contrast black-and-white image. Deskew and denoise can help remove artifacts;
                         contrast settings enhance text legibility to improve OCR accuracy.
+                    </div>
+                    <div class="col-12 mb-3">
+                        <label for="preprocessingExecutionMode" class="form-label">Preprocessing execution</label>
+                        <InputSelect class="form-select" id="preprocessingExecutionMode"
+                                     @bind-Value="preprocessingExecutionMode" @bind-Value:after="OnPreprocessingExecutionModeChanged">
+                            <option value="@PreprocessingExecutionMode.Auto">Auto (use client only on capable devices)</option>
+                            <option value="@PreprocessingExecutionMode.Client">Client side (always browser)</option>
+                            <option value="@PreprocessingExecutionMode.Server">Server side (always API)</option>
+                        </InputSelect>
+                        <div class="form-text">
+                            Effective mode: <strong>@GetEffectivePreprocessingLocationLabel()</strong>
+                        </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-check mb-3">
@@ -573,7 +593,9 @@
 
     private ProcessingPhase currentPhase = ProcessingPhase.Preprocessing;
     private string? sourceImageBase64;
+    private string sourceImageMimeType = "image/png";
     private string? preprocessedImageBase64;
+    private string preprocessedImageMimeType = "image/png";
     private string? errorMessage;
     private bool isLoading;
     private bool timerActive;
@@ -606,6 +628,7 @@
         if (!string.IsNullOrEmpty(InitialImageBase64))
         {
             sourceImageBase64 = InitialImageBase64;
+            sourceImageMimeType = "image/png";
             OnSettingsChanged();
         }
     }
@@ -615,6 +638,7 @@
         if (!string.IsNullOrEmpty(InitialImageBase64) && sourceImageBase64 != InitialImageBase64)
         {
             sourceImageBase64 = InitialImageBase64;
+            sourceImageMimeType = "image/png";
             OnSettingsChanged();
         }
     }
@@ -636,7 +660,7 @@
             if (file.Size > maxFileSize)
             {
                 errorMessage = "File size exceeds 10MB limit";
-                await InvokeAsync(StateHasChanged);
+                RequestRender();
                 return;
             }
 
@@ -644,7 +668,7 @@
             if (!file.ContentType.StartsWith("image/"))
             {
                 errorMessage = "Please select an image file";
-                await InvokeAsync(StateHasChanged);
+                RequestRender();
                 return;
             }
 
@@ -654,9 +678,11 @@
             await stream.CopyToAsync(memoryStream);
             var bytes = memoryStream.ToArray();
             sourceImageBase64 = Convert.ToBase64String(bytes);
+            sourceImageMimeType = string.IsNullOrWhiteSpace(file.ContentType) ? "image/png" : file.ContentType;
 
             // Clear previous results and reset job ID for new image
             preprocessedImageBase64 = null;
+            preprocessedImageMimeType = "image/png";
             ocrResult = null;
             inferenceResult = null;
             currentPhase = ProcessingPhase.Preprocessing;
@@ -674,7 +700,7 @@
             Logger.LogError(ex, "Error reading file");
         }
 
-        await InvokeAsync(StateHasChanged);
+        RequestRender();
     }
 
     private void OnSettingsChanged()
@@ -705,7 +731,7 @@
         progressTimer.AutoReset = true;
         progressTimer.Start();
 
-        InvokeAsync(StateHasChanged);
+        RequestRender();
     }
 
     private void ResetTimer()
@@ -757,7 +783,7 @@
         var elapsed = (DateTime.UtcNow - lastSettingsChange).TotalSeconds;
         timerSecondsRemaining = Math.Max(0, (int)Math.Ceiling(5 - elapsed));
         timerProgress = Math.Max(0, (5 - elapsed) / 5 * 100);
-        InvokeAsync(StateHasChanged);
+        RequestRender();
     }
 
     private async Task OnTimerElapsed()
@@ -787,38 +813,74 @@
         currentJobStatus = null;
         StartStatusPolling();
         await OnPreprocessingStarted.InvokeAsync(currentJobId);
-        await InvokeAsync(StateHasChanged);
+        RequestRender();
 
         try
         {
-            var request = new PreprocessingRequest
+            if (ShouldUseClientSidePreprocessing() && BrowserImagePreprocessor != null)
             {
-                ImageBase64 = sourceImageBase64,
-                JobId = currentJobId,
-                Denoise = settings.Denoise,
-                Deskew = settings.Deskew,
-                FuzzPercent = settings.FuzzPercent,
-                DeskewThreshold = settings.DeskewThreshold,
-                ContrastType = settings.ContrastType,
-                ContrastStrength = settings.ContrastStrength,
-                ContrastMidpoint = settings.ContrastMidpoint,
-                ApplyThreshold = settings.ApplyThreshold,
-                ThresholdPercent = settings.ThresholdPercent
-            };
+                var browserResult = await BrowserImagePreprocessor.PreprocessAsync(sourceImageBase64, new BrowserPreprocessingSettings
+                {
+                    Denoise = settings.Denoise,
+                    Deskew = settings.Deskew,
+                    FuzzPercent = settings.FuzzPercent,
+                    DeskewThreshold = settings.DeskewThreshold,
+                    ContrastType = settings.ContrastType,
+                    ContrastStrength = settings.ContrastStrength,
+                    ContrastMidpoint = settings.ContrastMidpoint,
+                    ApplyThreshold = settings.ApplyThreshold,
+                    ThresholdPercent = settings.ThresholdPercent,
+                    TargetDpi = ocrSettings.TargetDpi
+                });
 
-            var result = await DocumentProcessingClient.PreprocessImageAsync(request);
+                preprocessedImageBase64 = browserResult.ImageBase64;
+                preprocessedImageMimeType = browserResult.ImageMimeType;
 
-            if (result != null && result.Status == "done")
-            {
-                preprocessedImageBase64 = result.ImageBase64;
-                Logger.LogInformation("Preprocessing complete for job {JobId}", currentJobId);
-                await OnPreprocessingCompleted.InvokeAsync(result);
+                var preprocessEvent = new PreprocessingResult
+                {
+                    JobId = currentJobId,
+                    Status = "done",
+                    ImageBase64 = browserResult.ImageBase64,
+                    ImageFormat = browserResult.ImageFormat,
+                    Width = browserResult.Width,
+                    Height = browserResult.Height
+                };
+
+                Logger.LogInformation("Browser preprocessing complete for job {JobId}", currentJobId);
+                await OnPreprocessingCompleted.InvokeAsync(preprocessEvent);
             }
             else
             {
-                errorMessage = result?.Error ?? "Preprocessing failed";
-                Logger.LogWarning("Preprocessing failed: {Error}", errorMessage);
-                await OnError.InvokeAsync(errorMessage);
+                var request = new PreprocessingRequest
+                {
+                    ImageBase64 = sourceImageBase64,
+                    JobId = currentJobId,
+                    Denoise = settings.Denoise,
+                    Deskew = settings.Deskew,
+                    FuzzPercent = settings.FuzzPercent,
+                    DeskewThreshold = settings.DeskewThreshold,
+                    ContrastType = settings.ContrastType,
+                    ContrastStrength = settings.ContrastStrength,
+                    ContrastMidpoint = settings.ContrastMidpoint,
+                    ApplyThreshold = settings.ApplyThreshold,
+                    ThresholdPercent = settings.ThresholdPercent
+                };
+
+                var result = await DocumentProcessingClient.PreprocessImageAsync(request);
+
+                if (result != null && result.Status == "done")
+                {
+                    preprocessedImageBase64 = result.ImageBase64;
+                    preprocessedImageMimeType = ResolveMimeTypeFromFormat(result.ImageFormat);
+                    Logger.LogInformation("Server preprocessing complete for job {JobId}", currentJobId);
+                    await OnPreprocessingCompleted.InvokeAsync(result);
+                }
+                else
+                {
+                    errorMessage = result?.Error ?? "Preprocessing failed";
+                    Logger.LogWarning("Preprocessing failed: {Error}", errorMessage);
+                    await OnError.InvokeAsync(errorMessage);
+                }
             }
         }
         catch (Exception ex)
@@ -831,7 +893,7 @@
         {
             isLoading = false;
             StopStatusPolling();
-            await InvokeAsync(StateHasChanged);
+            RequestRender();
         }
     }
 
@@ -861,9 +923,15 @@
         try
         {
             // Run OCR
+            var ocrInputBase64 = preprocessedImageBase64;
+            if (ShouldUseClientSidePreprocessing() && BrowserImagePreprocessor != null)
+            {
+                ocrInputBase64 = await BrowserImagePreprocessor.ResampleForOcrAsync(preprocessedImageBase64, ocrSettings.TargetDpi);
+            }
+
             var ocrRequest = new OcrRequest
             {
-                ImageBase64 = preprocessedImageBase64,
+                ImageBase64 = ocrInputBase64,
                 JobId = currentJobId,
                 OcrEngine = ocrSettings.OcrEngine,
                 TargetDpi = ocrSettings.TargetDpi,
@@ -992,7 +1060,9 @@
         ResetTimer();
         StopStatusPolling();
         sourceImageBase64 = null;
+        sourceImageMimeType = "image/png";
         preprocessedImageBase64 = null;
+        preprocessedImageMimeType = "image/png";
         ocrResult = null;
         inferenceResult = null;
         errorMessage = null;
@@ -1019,8 +1089,10 @@
         {
             // Replace source with last preprocessed result to allow stacking
             sourceImageBase64 = preprocessedImageBase64;
+            sourceImageMimeType = preprocessedImageMimeType;
             // Clear current preprocessed result to show updated preview after re-run
             preprocessedImageBase64 = null;
+            preprocessedImageMimeType = "image/png";
             ocrResult = null;
             inferenceResult = null;
             currentPhase = ProcessingPhase.Preprocessing;
@@ -1085,28 +1157,205 @@
 
         if (isLeft)
         {
-            leftLensStyle = BuildLensStyle(posX, posY, lensSize, ((currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) && !string.IsNullOrEmpty(preprocessedImageBase64) ? preprocessedImageBase64 : sourceImageBase64));
+            var leftBase64 = (currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) && !string.IsNullOrEmpty(preprocessedImageBase64)
+                ? preprocessedImageBase64
+                : sourceImageBase64;
+            var leftMimeType = (currentPhase == ProcessingPhase.Ocr || currentPhase == ProcessingPhase.Inference) && !string.IsNullOrEmpty(preprocessedImageBase64)
+                ? preprocessedImageMimeType
+                : sourceImageMimeType;
+            leftLensStyle = BuildLensStyle(posX, posY, lensSize, leftBase64, leftMimeType);
         }
         else
         {
-            rightLensStyle = BuildLensStyle(posX, posY, lensSize, preprocessedImageBase64);
+            rightLensStyle = BuildLensStyle(posX, posY, lensSize, preprocessedImageBase64, preprocessedImageMimeType);
         }
 
-        InvokeAsync(StateHasChanged);
+        RequestRender();
     }
 
-    private string BuildLensStyle(double mouseX, double mouseY, int lensSize, string? base64)
+    private static string BuildLensStyle(double mouseX, double mouseY, int lensSize, string? base64, string mimeType)
     {
         if (string.IsNullOrEmpty(base64)) return "display:none;";
         var half = lensSize / 2.0;
         var bgPosX = mouseX;
         var bgPosY = mouseY;
         // Place lens centered on cursor. Use transform to center via left/top.
-        return $"display:block; left:{mouseX - half}px; top:{mouseY - half}px; background-image:url('data:image/png;base64,{base64}'); background-position:{bgPosX}px {bgPosY}px;";
+        return $"display:block; left:{mouseX - half}px; top:{mouseY - half}px; background-image:url('data:{mimeType};base64,{base64}'); background-position:{bgPosX}px {bgPosY}px;";
     }
+
+    private enum PreprocessingExecutionMode
+    {
+        Auto,
+        Client,
+        Server
+    }
+
+    private const string PreprocessingExecutionModeStorageKey = "documentProcessor.preprocessingExecutionMode";
+    private PreprocessingExecutionMode preprocessingExecutionMode = PreprocessingExecutionMode.Auto;
+    private bool isClientCapable;
+    private const int MinModernAndroidVersion = 12;
+    private const int MinModernIosVersion = 16;
+    private static readonly Regex AndroidVersionRegex = new(@"Android\s+(\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex IosVersionRegex = new(@"OS\s+(\d+)[._]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private bool ShouldUseClientSidePreprocessing() =>
+        preprocessingExecutionMode switch
+        {
+            PreprocessingExecutionMode.Client => true,
+            PreprocessingExecutionMode.Server => false,
+            _ => isClientCapable
+        };
+
+    private string GetEffectivePreprocessingLocationLabel() =>
+        ShouldUseClientSidePreprocessing() ? "Client side" : "Server side";
+
+    private async Task OnPreprocessingExecutionModeChanged()
+    {
+        await PersistPreprocessingExecutionModeOverrideAsync();
+        OnSettingsChanged();
+    }
+
+    private async Task InitializePreprocessingExecutionModeAsync()
+    {
+        preprocessingExecutionMode = GetConfiguredPreprocessingExecutionMode();
+
+        if (JSRuntime == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var storedMode = await JSRuntime.InvokeAsync<string?>("localStorage.getItem", PreprocessingExecutionModeStorageKey);
+            if (TryParsePreprocessingExecutionMode(storedMode, out var parsedMode))
+            {
+                preprocessingExecutionMode = parsedMode;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Unable to read preprocessing execution mode from localStorage.");
+        }
+
+        try
+        {
+            var capabilities = await JSRuntime.InvokeAsync<ClientCapabilitySnapshot>("documentProcessorConfig.getClientCapabilities");
+            isClientCapable = EvaluateClientCapability(capabilities);
+        }
+        catch (Exception ex)
+        {
+            isClientCapable = false;
+            Logger.LogWarning(ex, "Unable to detect browser capabilities for preprocessing; defaulting auto mode to server-side.");
+        }
+
+        RequestRender();
+    }
+
+    private PreprocessingExecutionMode GetConfiguredPreprocessingExecutionMode()
+    {
+        if (TryParsePreprocessingExecutionMode(Configuration?.GetValue<string>("Application:clientConfiguration:ImagePreprocessingExecutionMode"), out var configuredMode))
+        {
+            return configuredMode;
+        }
+
+        var legacyFlag = Configuration?.GetValue<bool?>("Application:features:UseBrowserPreprocessing");
+        return legacyFlag switch
+        {
+            true => PreprocessingExecutionMode.Client,
+            false => PreprocessingExecutionMode.Server,
+            _ => PreprocessingExecutionMode.Auto
+        };
+    }
+
+    private async Task PersistPreprocessingExecutionModeOverrideAsync()
+    {
+        if (JSRuntime == null)
+        {
+            return;
+        }
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", PreprocessingExecutionModeStorageKey, preprocessingExecutionMode.ToString());
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Unable to persist preprocessing execution mode to localStorage.");
+        }
+    }
+
+    private static bool TryParsePreprocessingExecutionMode(string? value, out PreprocessingExecutionMode mode) =>
+        Enum.TryParse(value, ignoreCase: true, out mode);
+
+    private static bool EvaluateClientCapability(ClientCapabilitySnapshot capabilities)
+    {
+        var userAgent = capabilities.UserAgent ?? string.Empty;
+        var hardwareConcurrency = capabilities.HardwareConcurrency <= 0 ? 1 : capabilities.HardwareConcurrency;
+        var memoryGb = capabilities.DeviceMemoryGb;
+
+        var isAndroid = userAgent.Contains("Android", StringComparison.OrdinalIgnoreCase);
+        var isIphone = userAgent.Contains("iPhone", StringComparison.OrdinalIgnoreCase);
+        var isIpad = userAgent.Contains("iPad", StringComparison.OrdinalIgnoreCase);
+        var isMobile = isAndroid || isIphone || isIpad || userAgent.Contains("Mobile", StringComparison.OrdinalIgnoreCase);
+
+        var androidMajor = ParseMajorVersion(userAgent, AndroidVersionRegex);
+        var iosMajor = ParseMajorVersion(userAgent, IosVersionRegex);
+        var modernMobile = (isAndroid && androidMajor >= MinModernAndroidVersion) || ((isIphone || isIpad) && iosMajor >= MinModernIosVersion);
+        var desktopCapable = !isMobile && (hardwareConcurrency >= 4 || memoryGb >= 4);
+        var modernMobileCapable = modernMobile && (hardwareConcurrency >= 6 || memoryGb >= 4);
+
+        return desktopCapable || modernMobileCapable;
+    }
+
+    private static int ParseMajorVersion(string userAgent, Regex regex)
+    {
+        var match = regex.Match(userAgent);
+        if (!match.Success || match.Groups.Count < 2)
+        {
+            return 0;
+        }
+
+        return int.TryParse(match.Groups[1].Value, out var value) ? value : 0;
+    }
+
+    private sealed class ClientCapabilitySnapshot
+    {
+        [JsonPropertyName("hardwareConcurrency")]
+        public int HardwareConcurrency { get; set; }
+
+        [JsonPropertyName("deviceMemoryGb")]
+        public double DeviceMemoryGb { get; set; }
+
+        [JsonPropertyName("userAgent")]
+        public string UserAgent { get; set; } = string.Empty;
+    }
+
+    private void RequestRender()
+    {
+        if (isRenderHandleReady)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private static string ResolveMimeTypeFromFormat(string? format) =>
+        string.Equals(format, "tiff", StringComparison.OrdinalIgnoreCase) ? "image/tiff" : "image/png";
+
+    private static string BuildDataUri(string? base64, string mimeType) =>
+        string.IsNullOrWhiteSpace(base64) ? string.Empty : $"data:{mimeType};base64,{base64}";
 
     private string leftLensStyle = "display:none;";
     private string rightLensStyle = "display:none;";
+    private bool isRenderHandleReady;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isRenderHandleReady = true;
+            await InitializePreprocessingExecutionModeAsync();
+        }
+    }
 
     public void Dispose()
     {
