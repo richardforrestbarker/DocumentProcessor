@@ -43,7 +43,7 @@ class TestCLIArguments:
         """Test that process command accepts a single image."""
         with patch.object(sys, 'argv', ['cli.py', 'process', '--image', sample_receipt_image_path]):
             with patch.object(cli, 'run_ocr', return_value=[]):
-                with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+                with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                     with patch('sys.stdout', new_callable=StringIO):
                         try:
                             main()
@@ -58,7 +58,7 @@ class TestCLIArguments:
         
         with patch.object(sys, 'argv', args):
             with patch.object(cli, 'run_ocr', return_value=[]):
-                with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+                with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                     with patch('sys.stdout', new_callable=StringIO):
                         try:
                             main()
@@ -71,7 +71,7 @@ class TestCLIArguments:
         for engine in ['paddle', 'tesseract']:
             with patch.object(sys, 'argv', ['cli.py', 'process', '--image', sample_receipt_image_path, '--ocr-engine', engine]):
                 with patch.object(cli, 'run_ocr', return_value=[]):
-                    with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+                    with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                         with patch('sys.stdout', new_callable=StringIO):
                             try:
                                 main()
@@ -90,7 +90,7 @@ class TestCLIArguments:
         for device in ['auto', 'cuda', 'cpu']:
             with patch.object(sys, 'argv', ['cli.py', 'process', '--image', sample_receipt_image_path, '--device', device]):
                 with patch.object(cli, 'run_ocr', return_value=[]):
-                    with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+                    with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                         with patch('sys.stdout', new_callable=StringIO):
                             try:
                                 main()
@@ -107,7 +107,7 @@ class TestCLIArguments:
         """Test denoise flag is properly parsed."""
         with patch.object(sys, 'argv', ['cli.py', 'process', '--image', sample_receipt_image_path, '--denoise']):
             with patch.object(cli, 'run_ocr', return_value=[]):
-                with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+                with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                     with patch.object(cli, 'preprocess_image') as mock_preprocess:
                         mock_preprocess.return_value = MagicMock()
                         with patch('sys.stdout', new_callable=StringIO):
@@ -120,7 +120,7 @@ class TestCLIArguments:
         """Test deskew flag is properly parsed."""
         with patch.object(sys, 'argv', ['cli.py', 'process', '--image', sample_receipt_image_path, '--deskew']):
             with patch.object(cli, 'run_ocr', return_value=[]):
-                with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+                with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                     with patch.object(cli, 'preprocess_image') as mock_preprocess:
                         mock_preprocess.return_value = MagicMock()
                         with patch('sys.stdout', new_callable=StringIO):
@@ -134,7 +134,7 @@ class TestCLIArguments:
         test_job_id = "my-custom-job-123"
         with patch.object(sys, 'argv', ['cli.py', 'process', '--image', sample_receipt_image_path, '--job-id', test_job_id]):
             with patch.object(cli, 'run_ocr', return_value=[]):
-                with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+                with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                     captured_output = StringIO()
                     with patch('sys.stdout', captured_output):
                         try:
@@ -151,7 +151,7 @@ class TestCLIArguments:
         output_path = temp_output_dir / "result.json"
         with patch.object(sys, 'argv', ['cli.py', 'process', '--image', sample_receipt_image_path, '--output', str(output_path)]):
             with patch.object(cli, 'run_ocr', return_value=[]):
-                with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+                with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                     try:
                         main()
                     except SystemExit:
@@ -168,7 +168,8 @@ class TestCLIArguments:
                 assert exc_info.value.code == 0
             output = captured_output.getvalue()
             assert 'Receipt OCR Service' in output
-            assert 'LayoutLMv3' in output
+            # Should list commercially licensed models
+            assert 'Donut' in output or 'IDEFICS2' in output
 
     def test_no_command_shows_help(self):
         """Test that running without command shows help."""
@@ -182,7 +183,7 @@ class TestCLIArguments:
         output_path = temp_output_dir / "result.json"
         with patch.object(sys, 'argv', ['cli.py', 'process', '-i', sample_receipt_image_path, '-o', str(output_path), '-m', 'custom/model']):
             with patch.object(cli, 'run_ocr', return_value=[]):
-                with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+                with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                     try:
                         main()
                     except SystemExit:
@@ -373,7 +374,7 @@ class TestOutputFormatting:
     def test_process_receipt_output_structure(self, sample_receipt_image_path):
         """Test that process_receipt returns correct structure."""
         with patch.object(cli, 'run_ocr', return_value=[]):
-            with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+            with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                 result = process_receipt([sample_receipt_image_path])
         
         # Check required top-level keys
@@ -391,7 +392,7 @@ class TestOutputFormatting:
     def test_process_receipt_job_id_generation(self, sample_receipt_image_path):
         """Test that job_id is generated when not provided."""
         with patch.object(cli, 'run_ocr', return_value=[]):
-            with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+            with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                 result = process_receipt([sample_receipt_image_path])
         
         assert result['job_id'].startswith('job-')
@@ -400,7 +401,7 @@ class TestOutputFormatting:
         """Test that custom job_id is used when provided."""
         custom_id = "custom-job-456"
         with patch.object(cli, 'run_ocr', return_value=[]):
-            with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+            with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                 result = process_receipt([sample_receipt_image_path], job_id=custom_id)
         
         assert result['job_id'] == custom_id
@@ -409,7 +410,7 @@ class TestOutputFormatting:
         """Test page structure in output."""
         mock_words = [{'text': 'Test', 'box': [10, 10, 100, 50], 'confidence': 0.95}]
         with patch.object(cli, 'run_ocr', return_value=mock_words):
-            with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+            with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                 result = process_receipt([sample_receipt_image_path])
         
         assert len(result['pages']) == 1
@@ -422,7 +423,7 @@ class TestOutputFormatting:
     def test_process_receipt_multi_page(self, multi_page_receipt_paths):
         """Test multi-page receipt processing."""
         with patch.object(cli, 'run_ocr', return_value=[]):
-            with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+            with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                 result = process_receipt(multi_page_receipt_paths)
         
         assert len(result['pages']) == 3
@@ -433,7 +434,7 @@ class TestOutputFormatting:
         """Test that output file contains valid JSON."""
         output_path = temp_output_dir / "result.json"
         with patch.object(cli, 'run_ocr', return_value=[]):
-            with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+            with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                 process_receipt([sample_receipt_image_path], output_path=str(output_path))
         
         assert output_path.exists()
@@ -445,7 +446,7 @@ class TestOutputFormatting:
         """Test that output creates parent directories if needed."""
         output_path = temp_output_dir / "nested" / "dir" / "result.json"
         with patch.object(cli, 'run_ocr', return_value=[]):
-            with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+            with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                 process_receipt([sample_receipt_image_path], output_path=str(output_path))
         
         assert output_path.exists()
@@ -480,7 +481,7 @@ class TestErrorHandling:
                 RuntimeError("PaddleOCR failed"),
                 []  # Tesseract fallback returns empty
             ]
-            with patch.object(cli, 'run_layoutlm_inference', return_value={"predictions": []}):
+            with patch.object(cli, 'run_model_inference_standalone', return_value={"predictions": []}):
                 # This should not raise an exception
                 result = process_receipt([sample_receipt_image_path])
 
@@ -488,7 +489,7 @@ class TestErrorHandling:
         """Test handling of model inference failure."""
         mock_words = [{'text': 'Test', 'box': [10, 10, 100, 50], 'confidence': 0.95}]
         with patch.object(cli, 'run_ocr', return_value=mock_words):
-            # Even when layoutlm fails, it should return gracefully (caught internally)
+            # Even when model inference fails, it should return gracefully (caught internally)
             # and the pipeline should use heuristics
             result = process_receipt([sample_receipt_image_path])
             # The function catches exceptions internally, so status should be 'done'

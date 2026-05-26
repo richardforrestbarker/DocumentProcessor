@@ -57,7 +57,4 @@ nunit-*.xml
 Wasm/wwwroot/lib
 
 *.db
-
-# Receipt OCR temporary files
-temp/receipts/
-*.receipt
+/Ocr/tests/test-receipts

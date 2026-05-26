@@ -20,8 +20,9 @@ VERSION = "1.0.0"
 
 def version_command() -> None:
     """Display version information."""
-    print(f"Receipt OCR Service v{VERSION}")
-    print("Models: Donut (default), IDEFICS2, LayoutLMv3")
+    print(f"Document OCR Service v{VERSION}")
+    print("Models: Donut (default), IDEFICS2, Phi-3-Vision, InternVL, Qwen2-VL")
+    print("All models have commercial-friendly licenses (MIT or Apache 2.0)")
     print("OCR: PaddleOCR, Tesseract (fallback)")
     
     # Check available dependencies
@@ -57,10 +58,12 @@ def version_command() -> None:
     for dep in deps:
         print(f"  - {dep}")
     
-    print("\nSupported Models:")
-    print("  - Donut (naver-clova-ix/donut-base-finetuned-cord-v2) - MIT license")
-    print("  - IDEFICS2 (HuggingFaceM4/idefics2-8b) - Apache 2.0 license")
-    print("  - LayoutLMv3 (microsoft/layoutlmv3-base) - requires OCR")
+    print("\nSupported Models (all commercially licensed):")
+    print("  - Donut (naver-clova-ix/donut-base-finetuned-cord-v2) - MIT license, receipt-optimized")
+    print("  - IDEFICS2 (HuggingFaceM4/idefics2-8b) - Apache 2.0 license, multi-document support")
+    print("  - Phi-3-Vision (microsoft/Phi-3-vision-128k-instruct) - MIT license, efficient")
+    print("  - InternVL (OpenGVLab/InternVL2-8B) - MIT license, high accuracy")
+    print("  - Qwen2-VL (Qwen/Qwen2-VL-7B-Instruct) - Apache 2.0 license, strong performance")
 
 
 def normalize_boxes(
@@ -70,7 +73,7 @@ def normalize_boxes(
     scale: int = 1000
 ) -> List[Dict[str, Any]]:
     """
-    Normalize bounding boxes to 0-1000 scale for LayoutLM.
+    Normalize bounding boxes to 0-1000 scale.
     
     Args:
         words: List of words with boxes
@@ -476,12 +479,18 @@ def inference_command(
     supported_models = {
         "naver-clova-ix/donut-base-finetuned-cord-v2",
         "HuggingFaceM4/idefics2-8b",
+        "phi-3-vision",
+        "OpenGVLab/InternVL",
+        "Qwen/Qwen2-VL-7B-Instruct",
     }
     if model not in supported_models:
         err = {
             "event": "model_error",
             "job_id": job_id,
-            "error": f"Unsupported model '{model}'. Supported models are: {', '.join(sorted(supported_models))}"
+            "error": (
+                f"Unsupported model '{model}'. Supported models are: "
+                + ", ".join(sorted(supported_models))
+            )
         }
         logger.warning(json.dumps(err))
         return {
@@ -495,7 +504,7 @@ def inference_command(
 
     actual_device = get_device(device)
     from ..postprocessing.field_extractor import FieldExtractor
-    from ..models import get_model, LayoutLMv3Model
+    from ..models import get_model
     
     with open(ocr_result_path, 'r') as f:
         ocr_result = json.load(f)
@@ -543,27 +552,26 @@ def inference_command(
             model_obj.load()
             tokens = [w['text'] for w in normalized_words] if normalized_words else []
             boxes = [w['box'] for w in normalized_words] if normalized_words else []
-            # If LayoutLMv3 and words are missing, warn user and skip model inference
-            if isinstance(model_obj, LayoutLMv3Model) and not normalized_words:
-                logger.warning("LayoutLMv3 requires OCR words. Skipping model inference.")
-            else:
+            # Always run model inference; some models can operate without OCR words
+            if not normalized_words:
+                logger.warning("No OCR words available. Proceeding with image-only inference.")
+            logger.info(json.dumps({
+                "event": "running_inference",
+                "job_id": effective_job_id,
+                "message": "Running model inference"
+            }))
+            model_result = model_obj.predict_from_words(
+                words=tokens,
+                boxes=boxes,
+                image=first_image
+            )
+            if model_result.get("entities"):
+                model_predictions = model_result["entities"]
                 logger.info(json.dumps({
-                    "event": "running_inference",
+                    "event": "model_entities",
                     "job_id": effective_job_id,
-                    "message": "Running model inference"
+                    "entities": list(model_predictions.keys())
                 }))
-                model_result = model_obj.predict_from_words(
-                    words=tokens,
-                    boxes=boxes,
-                    image=first_image
-                )
-                if model_result.get("entities"):
-                    model_predictions = model_result["entities"]
-                    logger.info(json.dumps({
-                        "event": "model_entities",
-                        "job_id": effective_job_id,
-                        "entities": list(model_predictions.keys())
-                    }))
         except Exception as e:
             logger.warning(json.dumps({
                 "event": "model_error",

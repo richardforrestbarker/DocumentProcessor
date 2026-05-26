@@ -7,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents();
+builder.Services.AddControllers().AddOcrControllers();
 
 // Add DocumentProcessor OCR services
 builder.Services.AddOcrDocumentProcessing(builder.Configuration);
@@ -15,7 +16,7 @@ builder.Services.AddOcrDocumentProcessing(builder.Configuration);
 builder.Services.AddDocumentProcessorWasmAsync();
 
 var app = builder.Build();
-
+app.UsePathBase("/");
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -29,7 +30,10 @@ app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.UseBlazorFrameworkFiles();
 app.MapRazorComponents<App>()
     .AddInteractiveWebAssemblyRenderMode();
+
+
 
 app.Run();

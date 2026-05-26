@@ -225,6 +225,7 @@ class DonutModel(BaseModel):
         import re
         
         entities = {
+            "document_type": {"value": "receipt", "confidence": 0.85, "box": None},  # CORD-v2 is receipt-specific
             "vendor_name": None,
             "date": None,
             "total_amount": None,
